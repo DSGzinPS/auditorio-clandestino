@@ -67,6 +67,10 @@ export class BotController {
     };
   }
 
+  onRpsStart() {
+    this.rps = { at: rand(0.8, 3.5), t: 0, pick: Math.floor(Math.random() * 3), sent: false };
+  }
+
   /** Planeja as compras: melhor arma que cabe no bolso, depois o melhor colete com o troco. */
   onBuyPhase() {
     const m = this.game.flow.match;
@@ -90,6 +94,8 @@ export class BotController {
     const sm = this.game.sm;
     if (sm.is(GameStates.QUIZ)) this._quiz(dt, it);
     else if (sm.is(GameStates.BUY)) this._buy(dt, it);
+    else if (sm.is(GameStates.RPS)) this._rps(dt, it);
+    else if (sm.is(GameStates.BASKETBALL)) this._basketball(dt, it);
     else if (sm.is(GameStates.ROUND) || sm.is(GameStates.TIEBREAK)) this._combat(dt, it);
     return it;
   }
@@ -116,6 +122,79 @@ export class BotController {
     } else {
       it.ready = true;
     }
+  }
+
+  _rps(dt, it) {
+    const r = this.rps;
+    if (!r || r.sent) return;
+    r.t += dt;
+    if (r.t >= r.at) { it.answer = r.pick; r.sent = true; }
+  }
+
+  // ---------------------------------------------------------------- basquete
+  /** Gira a mira rumo a (yaw, pitch) com velocidade limitada. */
+  _turnTo(dt, it, yaw, pitch) {
+    const me = this.self;
+    const dYaw = wrapAngle(yaw - me.yaw);
+    const dPitch = pitch - me.pitch;
+    const maxTurn = CONFIG.bot.turnSpeed * dt;
+    it.lookX = -clamp(dYaw, -maxTurn, maxTurn);
+    it.lookY = -clamp(dPitch, -maxTurn, maxTurn);
+    return { dYaw, dPitch };
+  }
+
+  _basketball(dt, it) {
+    const g = this.game, me = this.self, ball = g.basketball, b = CONFIG.bot;
+    if (!ball || me.mode !== 'controlled' || me.frozen) return;
+    const eye = me.getEyePosition(this._eye);
+    const err = b.aimError * 0.35;
+    this.aimOffsetTimer -= dt;
+    if (this.aimOffsetTimer <= 0) {
+      this.aimOffset.yaw = rand(-1, 1) * err;
+      this.aimOffset.pitch = rand(-1, 1) * err;
+      this.aimOffsetTimer = rand(0.5, 1);
+    }
+
+    // COM A BOLA: chega a uma distância boa da cesta e arremessa em parábola alta
+    if (ball.holder === me) {
+      const hoop = (g.arena.extras.hoops ?? []).find((h) => h.forTeam === me.team);
+      if (!hoop) return;
+      const c = hoop.center;
+      const dx = c.x - eye.x, dz = c.z - eye.z, d = Math.hypot(dx, dz);
+      const h = c.y + 0.3 - eye.y;
+      const v = CONFIG.basketball.throwSpeed, gg = -CONFIG.physics.gravity;
+      const disc = v ** 4 - gg * (gg * d * d + 2 * h * v * v);
+      let mz = 0;
+      if (d > 7.5 || disc < 0) mz = 1;
+      else if (d < 3.5) mz = -1;
+      const pitch = disc >= 0 ? Math.atan((v * v + Math.sqrt(disc)) / (gg * d)) : 0.6;
+      const { dYaw, dPitch } = this._turnTo(dt, it, Math.atan2(-dx, -dz) + this.aimOffset.yaw, pitch + this.aimOffset.pitch);
+      it.moveZ = mz;
+      const steady = Math.hypot(me.controller.velocity.x, me.controller.velocity.z) < 1.5;
+      if (mz === 0 && steady && disc >= 0 && Math.abs(dYaw) < 0.025 && Math.abs(dPitch) < 0.025) it.fire = true;
+      return;
+    }
+
+    const bp = ball.body.position;
+    // BOLA SOLTA: corre atrás dela
+    if (!ball.holder) {
+      const dx = bp.x - eye.x, dz = bp.z - eye.z;
+      this._turnTo(dt, it, Math.atan2(-dx, -dz), Math.atan2(bp.y - eye.y, Math.hypot(dx, dz)) * 0.5);
+      it.moveZ = 1;
+      return;
+    }
+
+    // ADVERSÁRIO COM A BOLA: persegue, soca de perto, granada de longe
+    const foe = ball.holder;
+    if (foe.team === me.team) return;
+    const fp = foe.controller.position;
+    const dx = fp.x - eye.x, dz = fp.z - eye.z, flat = Math.hypot(dx, dz);
+    const lob = flat > 4 ? 0.18 + flat * 0.01 : Math.atan2(fp.y - eye.y, flat);
+    const { dYaw, dPitch } = this._turnTo(dt, it, Math.atan2(-dx, -dz) + this.aimOffset.yaw, lob);
+    it.moveZ = flat > 1.1 ? 1 : 0;
+    it.moveX = this.strafeDir * 0.3;
+    if (flat < MELEE.range && Math.abs(dYaw) < 0.5) it.melee = true;
+    else if (flat > 4.5 && flat < 13 && g.grenades.ready(me) && Math.abs(dYaw) < 0.06 && Math.abs(dPitch) < 0.08) it.fire = true;
   }
 
   // ---------------------------------------------------------------- combate

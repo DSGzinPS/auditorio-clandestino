@@ -19,6 +19,10 @@ import { TiebreakState } from '../states/TiebreakState.js';
 import { BuyState } from '../states/BuyState.js';
 import { RoundState } from '../states/RoundState.js';
 import { RoundEndState, MatchEndState } from '../states/EndStates.js';
+import { RpsState } from '../states/RpsState.js';
+import { BasketballState } from '../states/BasketballState.js';
+import { Grenades } from '../systems/Grenades.js';
+import { shotKnockback } from '../physics/ChaosForces.js';
 import { PlayerCamera } from '../camera/PlayerCamera.js';
 import { SplitScreenRenderer } from '../camera/SplitScreenRenderer.js';
 import { Input } from './Input.js';
@@ -62,6 +66,9 @@ export class Game {
     this.arena = new Arena(this.scene, this.physics);
     this.projectiles = new ProjectileSystem(this.scene, this.physics);
     this.damage = new DamageSystem(this);
+    this.grenades = new Grenades(this);
+    this.basketball = null;  // criado pelo BasketballState
+    this.weaponLabel = null; // estados podem trocar o texto da arma no HUD
 
     // Jogadores (o bot usa o MESMO Character que você)
     this.players = PLAYER_DEFS.map((def, index) => {
@@ -82,7 +89,9 @@ export class Game {
       .register(GameStates.BUY, new BuyState())
       .register(GameStates.ROUND, new RoundState())
       .register(GameStates.ROUND_END, new RoundEndState())
-      .register(GameStates.MATCH_END, new MatchEndState());
+      .register(GameStates.MATCH_END, new MatchEndState())
+      .register(GameStates.RPS, new RpsState())
+      .register(GameStates.BASKETBALL, new BasketballState());
 
     // Controles: humano, bot ou nada — mesma interface read(dt)
     this.schemes = this.players.map((p, i) => {
@@ -118,7 +127,7 @@ export class Game {
     this.damage.onHit = (ctx) => this.hud.hit(ctx);
 
     this.renderer.domElement.addEventListener('click', () => {
-      const fighting = this.sm.is(GameStates.ROUND) || this.sm.is(GameStates.TIEBREAK);
+      const fighting = this.sm.is(GameStates.ROUND) || this.sm.is(GameStates.TIEBREAK) || this.sm.is(GameStates.BASKETBALL);
       if (fighting && !this.input.locked && !this.isTouch) this.input.requestLock();
     });
 
@@ -135,7 +144,7 @@ export class Game {
   tick(timestamp) {
     this.timer.update(timestamp);
     this.step(Math.min(this.timer.getDelta(), 0.1));
-    this.touch?.setVisible(this.sm.is(GameStates.ROUND) || this.sm.is(GameStates.TIEBREAK));
+    this.touch?.setVisible(this.sm.is(GameStates.ROUND) || this.sm.is(GameStates.TIEBREAK) || this.sm.is(GameStates.BASKETBALL));
     this.views.forEach((v) => v.update(this.lastDt));
     this.renderer.render(this.scene, this.views.map((v) => v.camera));
     this.hud.update(this);
@@ -153,9 +162,14 @@ export class Game {
       p.weapon.update(dt);
       p.preStep(dt, this.intents[i]);
     });
+    this.arena.update(dt); // obstáculos móveis
     this.physics.step(dt);
     this.players.forEach((p) => p.postStep(dt));
+    // carro / barra giratória / parede: derruba sem dano
+    this.arena.drainKnocks((k) => shotKnockback(k.character, k.direction, k.scale));
     this.projectiles.update(dt);
+    this.basketball?.update(dt);
+    this.grenades.update(dt);
     this.physics.sync();
   }
 }

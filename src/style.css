@@ -201,3 +201,29 @@ html, body { touch-action: none; overscroll-behavior: none; -webkit-tap-highligh
 }
 .touch .lil-gui.autoPlace { top: auto !important; bottom: 4px; right: 50% !important; transform: translateX(50%); max-height: 60vh; }
 .touch .half:has(.shop:not(.hidden)) .vitals, .touch .half:has(.shop:not(.hidden)) .loadout { display: none; }
+
+/* ===================== Pedra, papel e tesoura ===================== */
+.rps {
+  pointer-events: auto; text-align: center; min-width: min(520px, 92%);
+  background: rgba(12, 8, 20, .9); border: 3px solid #ff2e88; border-radius: 18px; padding: 18px 22px;
+}
+.rps-options { display: flex; gap: 12px; }
+.rps-options button {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; font: inherit; font-weight: 900; color: #fff;
+  padding: 10px 6px; border-radius: 12px; border: 3px solid #ffffff22; background: #2a2140; cursor: pointer;
+}
+.rps-options button:hover:not(:disabled) { background: #3a2d5a; }
+.rps-options button.picked { background: #ff2e88; border-color: #fff; }
+.rps-icon { font-size: 44px; line-height: 1; }
+.rps-board { display: flex; justify-content: center; gap: 24px; margin-top: 12px; font-weight: 800; }
+.rps-board b { font-size: 22px; }
+.rps-pick { font-size: 30px; }
+.rps-wait { opacity: .7; font-size: 13px; }
+@media (max-height: 520px) {
+  .rps { padding: 8px 14px; }
+  .rps-icon { font-size: 30px; }
+  .rps-options button { padding: 6px 4px; font-size: 13px; }
+  .rps-board { margin-top: 6px; }
+}
+.touch .half:has(.quiz:not(.hidden)) .vitals, .touch .half:has(.quiz:not(.hidden)) .loadout,
+.touch .half:has(.rps:not(.hidden)) .vitals, .touch .half:has(.rps:not(.hidden)) .loadout { display: none; }

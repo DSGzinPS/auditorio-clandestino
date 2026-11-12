@@ -43,9 +43,15 @@ export class TouchControls {
 
   /** Lê e zera o que é acumulado (giro da mira). */
   consume() {
-    const r = { moveX: this.moveX, moveZ: this.moveZ, lookDX: this.lookDX, lookDY: this.lookDY, fire: this.fire, melee: this.melee };
+    // toque rápido (aperta e solta entre dois quadros) conta pelo menos uma vez
+    const r = {
+      moveX: this.moveX, moveZ: this.moveZ, lookDX: this.lookDX, lookDY: this.lookDY,
+      fire: this.fire || this.firePressed, melee: this.melee || this.meleePressed,
+    };
     this.lookDX = 0;
     this.lookDY = 0;
+    this.firePressed = false;
+    this.meleePressed = false;
     return r;
   }
 
@@ -114,7 +120,7 @@ export class TouchControls {
   }
 
   _button(el, key, aimWhileHeld) {
-    const down = () => { this[key] = true; el.classList.add('on'); };
+    const down = () => { this[key] = true; this[`${key}Pressed`] = true; el.classList.add('on'); };
     const up = () => { this[key] = false; el.classList.remove('on'); };
     if (aimWhileHeld) {
       this._drag(el, down, up);

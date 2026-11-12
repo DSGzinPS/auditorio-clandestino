@@ -41,7 +41,7 @@ export class QuizState extends State {
     g.projectiles.drainHits(() => {});
 
     if (this.phase === 'asking') {
-      g.intents.forEach((it, i) => { if (it.answer !== null) this.submit(i, it.answer); });
+      g.intents.forEach((it, i) => { if (it.answer === 0 || it.answer === 1) this.submit(i, it.answer); });
       this.timer -= dt;
       g.hud.setQuizTimer(Math.max(0, this.timer));
       if (this.timer <= 0) this.answers.forEach((a, i) => { if (a === null) this.submit(i, -1); });

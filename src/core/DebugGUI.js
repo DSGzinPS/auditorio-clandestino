@@ -70,6 +70,9 @@ export function createDebugGUI(game) {
     killBot: () => game.damage.apply({ target: bot, attacker: game.players[0], weapon: { name: 'Debug', damage: 999, headshotMult: 1, knockback: 120 }, direction: new CANNON.Vec3(0, 0, -1), headshot: false, kind: 'projectile' }),
   };
   const a = gui.addFolder('Testes');
+  const stageNames = Object.fromEntries(CONFIG.match.stages.map((st, i) => [`${i + 1}. ${st.label ?? st.type}`, i]));
+  const jump = { etapa: 0 };
+  a.add(jump, 'etapa', stageNames).name('Pular para etapa').onChange((i) => game.flow.jumpTo(Number(i)));
   a.add(actions, 'newMatch').name('Nova partida');
   a.add(actions, 'pvp').name('Pular direto pro PvP');
   a.add(actions, 'money').name('+$1000 pra mim');

@@ -1,4 +1,4 @@
-# Programa de Auditório Clandestino — Greybox (Fase 2)
+# Programa de Auditório Clandestino — Greybox (Fase 3: as 6 etapas)
 
 FPS 1v1 com Three.js + cannon-es. Quiz de matemática → erra e vai pro teto → tiroteio com ragdoll.
 
@@ -19,16 +19,23 @@ No celular aparecem controles de toque: joystick à esquerda (aparece onde o ded
 
 O APK é gerado no GitHub (`.github/workflows/android-apk.yml`): a cada push na `main`, o GitHub Actions compila e publica o `auditorio-clandestino.apk` em **Releases**. No celular, abra a página de Releases do repositório, baixe o APK e instale (o Android vai pedir para permitir "instalar apps desconhecidos" do navegador). O projeto Android é a pasta `android/` (Capacitor). Para atualizar localmente: `npm run android:sync`.
 
-## Como a partida funciona (etapas 1 e 2)
+## Como a partida funciona (6 etapas)
 
-1. **Quiz (3 perguntas).** Acertou: +$300. Errou ou não respondeu: vai pro teto (e só deixa de ganhar). Antes de cada pergunta todos voltam ao púlpito.
-2. **Perdedor do quiz = quem acertou menos.** Se acertou 0, fica com o **patinho de borracha** (arremessável, 5 de dano, depois de jogar fica de mãos vazias até buscar). Se acertou 1 ou mais, fica com o **estilingue**. Nos dois casos não compra nada durante os 4 rounds.
-   **Empate:** "saem na mão". É um duelo só de soco, e quem cair primeiro é o perdedor. Se acabar o tempo, perde quem tiver menos HP.
-3. **PvP: 4 rounds**, com 15 s de loja antes de cada um (teclas 1–6 ou clique; Enter = pronto). Todos têm 100 de HP. Colete de até 50, que absorve o dano primeiro. Quem sobrevive mantém arma e colete (modelo CS). Quem morre volta com a arma padrão.
-4. **Dinheiro no PvP:** vitória de round +$500 para o time. Kill +$300 × multiplicadores: headshot ×2, soco ×3, patinho ×5, double kill ×1,5. Tudo em `CONFIG.economy`.
-5. **Fim:** vence o time com mais rounds ganhos. Depois de alguns segundos começa uma nova partida.
+| # | Etapa | Mapa | Dinheiro | Perdeu? |
+|---|---|---|---|---|
+| 1 | **Quiz** (3 perguntas) | Estúdio | +$300 por acerto | errou → teto |
+| 2 | **PvP**, 4 rounds, loja de 15 s | Estúdio | round +$500 · kill +$300 × multiplicadores | — |
+| 3 | **Pedra, papel e tesoura** (melhor de 3) | Estúdio | +$300 por rodada ganha | perdeu a rodada → teto |
+| 4 | **PvP**, 4 rounds | **Bastidores**: corredores, barra giratória no centro e paredes deslizantes que derrubam | idem | — |
+| 5 | **Basquete com granadas** (melhor de 3) | **Quadra** | +$400 por cesta | ninguém morre: soco empurra, granada arremessa e quem cai solta a bola |
+| 6 | **PvP final**, 4 rounds | **Rua** ("sapo atravessando"): carros só derrubam, quem mata é tiro | idem | — |
 
-As próximas etapas (pedra-papel-tesoura, mapa 2, basquete com granadas, mapa do sapo) entram como novas entradas em `CONFIG.match.stages`.
+- **Cada minigame (1, 3 e 5) pune quem fez menos pontos no PvP seguinte:** com 0 pontos fica com o **patinho**, com 1 ou mais fica com o **estilingue**, e em nenhum dos casos pode comprar nada nos 4 rounds. Se todos empatarem, **"saem na mão"**: desempate só no soco.
+- **Vencedor da partida:** o time com mais rounds ganhos nos 3 PvPs (12 rounds).
+- **Basquete:** encoste na bola para pegar. ATIRAR arremessa a bola (mire para cima!) e, sem a bola, joga uma granada (3 s de recarga). SOCO empurra. A cesta do outro lado é a sua.
+- Para testar uma etapa direto: painel **G** → Testes → "Pular para etapa".
+
+Os mapas ficam em `src/world/maps.js` e o roteiro em `CONFIG.match.stages`.
 
 ### Armas (`src/data/catalog.js`)
 
@@ -47,7 +54,7 @@ Armas com "derruba" ativam o ragdoll a cada acerto. As outras dão só um tranco
 
 ## Controles
 
-Contra o bot: WASD + mouse (clique na tela para travar), clique atira, **botão direito/V soca**, 1/2 responde, 1–6 compra, Enter pronto.
+Contra o bot: WASD + mouse (clique na tela para travar), clique atira, **botão direito/V soca**, 1/2 responde o quiz, 1/2/3 = pedra/papel/tesoura, 1–6 compra, Enter pronto.
 
 Em tela dividida (`CONFIG.game.mode = 'splitscreen'`):
 
@@ -70,6 +77,8 @@ src/
   ai/BotController.js       bot offline (mesma interface dos controles): quiz, loja, tiro, soco, patinho
   data/catalog.js           armas, coletes e soco (dados puros)
   systems/DamageSystem.js   dano, colete, headshot, tranco/ragdoll, kill
+  systems/Basketball.js     bola: pegar, carregar, arremessar, cesta
+  systems/Grenades.js       granadas que arremessam sem dano
   core/
     Match.js                estado da partida: dinheiro, restrições, rounds, kills, recompensas
     MatchFlow.js            roteiro: percorre CONFIG.match.stages e decide o próximo estado
@@ -83,6 +92,8 @@ src/
     TiebreakState.js        empate no quiz → só soco
     BuyState.js             15 s de loja
     RoundState.js           PvP valendo, kills e fim de round
+    RpsState.js             etapa 3: pedra, papel e tesoura
+    BasketballState.js      etapa 5: basquete com granadas
     EndStates.js            resumo do round (recompensas) e fim de partida
   physics/
     PhysicsWorld.js         mundo cannon-es, materiais, grupos de colisão, sync corpo→malha
@@ -94,12 +105,13 @@ src/
   camera/
     PlayerCamera.js         1ª pessoa / chase cam no ragdoll / layers
     SplitScreenRenderer.js  viewport por jogador
-  world/Arena.js            estúdio: chão, paredes, teto, púlpitos, coberturas, luzes
+  world/Arena.js            gerenciador de mapas, obstáculos móveis (derrubam sem dano)
+  world/maps.js             Estúdio, Bastidores, Quadra e Rua
   quiz/QuestionGenerator.js
   ui/HUD.js + style.css
 ```
 
-Fluxo: `QUIZ ×3 → (TIEBREAK se empatar) → [BUY → ROUND → ROUND_END] ×4 → MATCH_END → nova partida`.
+Fluxo: `QUIZ → PvP ×4 → RPS → PvP ×4 (Bastidores) → BASQUETE → PvP ×4 (Rua) → MATCH_END → nova partida` (com TIEBREAK depois de qualquer minigame empatado).
 
 ## Como o ragdoll funciona
 

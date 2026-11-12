@@ -51,6 +51,17 @@ export class HUD {
             </div>
           </div>
 
+          <div class="rps hidden">
+            <div class="quiz-head"><span class="rps-count"></span><span class="quiz-timer rps-timer"></span></div>
+            <div class="quiz-question">PEDRA, PAPEL OU TESOURA?</div>
+            <div class="rps-options">
+              ${['✊|PEDRA', '✋|PAPEL', '✌️|TESOURA'].map((t, o) => `
+                <button tabindex="-1" data-p="${i}" data-r="${o}"><span class="rps-icon">${t.split('|')[0]}</span><span>${t.split('|')[1]}</span><kbd>${keyHints[i][o] ?? o + 1}</kbd></button>`).join('')}
+            </div>
+            <div class="rps-board"></div>
+            <div class="quiz-feedback rps-result"></div>
+          </div>
+
           <div class="shop hidden">
             <div class="shop-head"><b>LOJA</b><span class="shop-timer"></span><span class="shop-money"></span></div>
             <div class="shop-restricted hidden"></div>
@@ -81,6 +92,10 @@ export class HUD {
       btn.addEventListener('mousedown', (e) => e.preventDefault()); // não rouba o foco
       btn.addEventListener('click', () => this.onAnswer?.(Number(btn.dataset.p), Number(btn.dataset.o)));
     });
+    root.querySelectorAll('button[data-r]').forEach((btn) => {
+      btn.addEventListener('mousedown', (e) => e.preventDefault());
+      btn.addEventListener('click', () => this.onRps?.(Number(btn.dataset.p), Number(btn.dataset.r)));
+    });
     root.querySelectorAll('.shop-ready').forEach((btn) => {
       btn.addEventListener('mousedown', (e) => e.preventDefault());
       btn.addEventListener('click', () => { this.onReady?.(Number(btn.dataset.p)); this.onUserGesture?.(); });
@@ -105,7 +120,8 @@ export class HUD {
       this._set(h.querySelector('.hp span'), 't', p.dead ? 'CAIU' : `${Math.ceil(p.hp)} HP`);
       h.querySelector('.armor i').style.width = `${(p.armor / 50) * 100}%`;
       this._set(h.querySelector('.armor span'), 't', p.armor > 0 ? `${Math.ceil(p.armor)} colete` : '');
-      const wn = game.meleeOnly ? 'Soco' : p.weapon.def.id === 'none' ? 'Mãos vazias (pegue o patinho!)' : p.weapon.def.name;
+      const wn = game.weaponLabel ? game.weaponLabel(p)
+        : game.meleeOnly ? 'Soco' : p.weapon.def.id === 'none' ? 'Mãos vazias (pegue o patinho!)' : p.weapon.def.name;
       this._set(h.querySelector('.weapon-name'), 't', wn);
       this._set(h.querySelector('.money'), 't', `$ ${m.money[p.index]}`);
     }
@@ -138,7 +154,7 @@ export class HUD {
   }
 
   setQuizTimer(t) {
-    for (const h of this.halves) h.querySelector('.quiz-timer').textContent = `${t.toFixed(1)}s`;
+    for (const h of this.halves) h.querySelectorAll('.quiz-timer').forEach((el) => { el.textContent = `${t.toFixed(1)}s`; });
   }
 
   markAnswer(pi, oi, correct) {
@@ -164,6 +180,49 @@ export class HUD {
 
   hideQuiz() {
     for (const h of this.halves) h.querySelector('.quiz').classList.add('hidden');
+  }
+
+  // ---------------------------------------------------------------- pedra, papel e tesoura
+  _rpsBoard(wins, picks = null) {
+    const icons = ['✊', '✋', '✌️'];
+    return this.players.map((p, i) => `<div style="color:${hex(p.color)}">${esc(p.name)}${p.isBot ? ' (bot)' : ''}: `
+      + `<b>${wins[i]}</b> ${picks ? `<span class="rps-pick">${picks[i] === null ? '—' : icons[picks[i]]}</span>` : `<span class="rps-wait" data-w="${i}">pensando…</span>`}</div>`).join('');
+  }
+
+  showRps({ wins, need, reward, round }) {
+    for (const h of this.halves) {
+      h.querySelector('.rps').classList.remove('hidden');
+      h.querySelector('.rps-count').textContent = `RODADA ${round} · QUEM FIZER ${need} GANHA · +$${reward}`;
+      h.querySelector('.rps-board').innerHTML = this._rpsBoard(wins);
+      h.querySelector('.rps-result').textContent = 'Perdeu a rodada: TETO';
+      h.querySelectorAll('.rps-options button').forEach((b) => { b.disabled = false; b.className = ''; });
+    }
+  }
+
+  markRps(pi, choice) {
+    const own = this.halfOf.get(pi);
+    if (own) {
+      own.querySelectorAll('.rps-options button').forEach((b, o) => {
+        b.disabled = true;
+        if (o === choice) b.classList.add('picked');
+      });
+    }
+    for (const h of this.halves) {
+      const w = h.querySelector(`.rps-wait[data-w="${pi}"]`);
+      if (w) w.textContent = 'escolheu ✔';
+    }
+  }
+
+  revealRps(picks, wins, text) {
+    for (const h of this.halves) {
+      h.querySelector('.rps-board').innerHTML = this._rpsBoard(wins, picks);
+      h.querySelector('.rps-result').textContent = text;
+      h.querySelectorAll('.rps-options button').forEach((b) => { b.disabled = true; });
+    }
+  }
+
+  hideRps() {
+    for (const h of this.halves) h.querySelector('.rps').classList.add('hidden');
   }
 
   // ---------------------------------------------------------------- loja

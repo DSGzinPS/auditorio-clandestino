@@ -3,7 +3,9 @@
 
 export const GameStates = Object.freeze({
   QUIZ: 'QUIZ_STATE',           // etapa 1: perguntas valendo dinheiro
-  TIEBREAK: 'TIEBREAK_STATE',   // empate no quiz: sai na mão
+  TIEBREAK: 'TIEBREAK_STATE',   // empate num minigame: sai na mão
+  RPS: 'RPS_STATE',             // etapa 3: pedra, papel e tesoura
+  BASKETBALL: 'BASKETBALL_STATE', // etapa 5: basquete com granadas
   BUY: 'BUY_STATE',             // 15 s de loja antes de cada round
   ROUND: 'ROUND_STATE',         // PvP valendo
   ROUND_END: 'ROUND_END_STATE', // resumo do round + recompensas

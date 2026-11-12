@@ -98,9 +98,14 @@ export const CONFIG = {
   //   { type: 'rps' }, { type: 'pvp', rounds: 4, map: 'mapa2' },
   //   { type: 'basketball' }, { type: 'pvp', rounds: 4, map: 'sapo' }
   match: {
+    // Cada minigame define quem fica restrito no PvP seguinte (quem fez menos pontos).
     stages: [
-      { type: 'quiz', questions: 3 },
-      { type: 'pvp', rounds: 4, map: 'estudio' },
+      { type: 'quiz', questions: 3, map: 'estudio', label: 'QUIZ' },
+      { type: 'pvp', rounds: 4, map: 'estudio', label: 'PVP NO ESTÚDIO' },
+      { type: 'rps', bestOf: 3, map: 'estudio', label: 'PEDRA, PAPEL E TESOURA' },
+      { type: 'pvp', rounds: 4, map: 'bastidores', label: 'PVP NOS BASTIDORES' },
+      { type: 'basketball', bestOf: 3, map: 'quadra', label: 'BASQUETE COM GRANADAS' },
+      { type: 'pvp', rounds: 4, map: 'rua', label: 'PVP FINAL NA RUA' },
     ],
     buyTime: 15,             // segundos de loja antes de cada round
     roundTimeLimit: 90,      // estourou: vence o time com mais HP somado
@@ -113,6 +118,8 @@ export const CONFIG = {
   economy: {
     startMoney: 0,
     quizCorrect: 300,        // por pergunta certa (errar só deixa de ganhar)
+    rpsWin: 300,             // por rodada ganha no pedra-papel-tesoura
+    basketPoints: 400,       // por cesta (para quem arremessou)
     roundWin: 500,           // para cada jogador do time que venceu o round
     killReward: 300,         // base por kill, multiplicada abaixo
     headshotMult: 2,
@@ -120,6 +127,27 @@ export const CONFIG = {
     duckKillMult: 5,         // kill com o patinho (humilhação)
     doubleKillMult: 1.5,     // 2ª kill dentro da janela (vale mais com 8 jogadores)
     multiKillWindow: 6,      // segundos
+  },
+
+  rps: {
+    timeLimit: 6,            // segundos para escolher (não escolheu = perde)
+    maxThrows: 12,           // trava contra empates infinitos
+  },
+
+  basketball: {
+    timeLimit: 150,          // estourou: vence quem tiver mais cestas
+    ballRadius: 0.3,
+    throwSpeed: 10.5,        // m/s do arremesso (mire pra cima!)
+    kickoffPause: 1.6,       // pausa antes de cada "bola ao alto"
+  },
+
+  grenade: {
+    cooldown: 3,
+    fuse: 1.3,
+    speed: 13,
+    radius: 4.5,
+    knock: 1.4,              // força do arremesso (1 = tiro cheio)
+    ballPush: 12,
   },
 
   player: {

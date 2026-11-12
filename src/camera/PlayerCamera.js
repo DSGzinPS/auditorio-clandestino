@@ -36,7 +36,9 @@ export class PlayerCamera {
   }
 
   _syncViewmodel() {
-    const def = this.forceFists ? { id: 'none', type: 'none' } : this.character.weapon.def;
+    const override = this.viewOverride?.();
+    const def = override ? { id: override, type: override }
+      : this.forceFists ? { id: 'none', type: 'none' } : this.character.weapon.def;
     if (def.id === this.viewId) return;
     if (this.viewmodel) this.camera.remove(this.viewmodel);
     this.viewmodel = buildViewmodel(def, this.character.color);
@@ -105,6 +107,19 @@ function buildViewmodel(def, playerColor) {
       fist.position.set(s * 0.22 - 0.1, -0.02, -0.05);
       g.add(fist);
     }
+    return g;
+  }
+  if (def.id === 'ball') {
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.3, 18, 12), new THREE.MeshStandardMaterial({ color: 0xff7a1a, roughness: 0.7 }));
+    ball.position.set(-0.15, 0.05, -0.25);
+    g.add(ball);
+    return g;
+  }
+  if (def.id === 'grenade') {
+    const nade = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 8), new THREE.MeshStandardMaterial({ color: 0x3a7d2c, roughness: 0.6 }));
+    const pin = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.008, 6, 12), new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8 }));
+    pin.position.set(0.05, 0.1, 0);
+    g.add(nade, pin);
     return g;
   }
   if (def.id === 'duck') {
