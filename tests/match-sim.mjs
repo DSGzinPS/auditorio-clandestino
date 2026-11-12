@@ -119,23 +119,38 @@ function playMatch(label, rigging, maxSeconds = 3000) {
 
 // ---------------------------------------------------------------- basquete isolado
 {
-  console.log('\n=== Basquete bot × bot (3 partidas) ===');
-  let baskets = 0, finished = 0;
+  console.log('\n=== Basquete com bola-bomba, bot × bot (3 partidas) ===');
+  let baskets = 0, finished = 0, everyoneGotUp = true, bothThrew = true;
   for (let k = 0; k < 3; k++) {
     const g = new Game(null, null, { headless: true, bots: [0, 1] });
+    // simula o bug antigo: um jogador "morto" do PvP anterior entrando no basquete
+    g.players[1].dead = true;
     g.flow.jumpTo(CONFIG.match.stages.findIndex((s) => s.type === 'basketball'));
-    let nades = 0;
-    const orig = g.grenades.throw.bind(g.grenades);
-    g.grenades.throw = (p) => { const ok = orig(p); if (ok) nades++; return ok; };
+    const throws = [0, 0];
+    let booms = 0;
+    const origThrow = g.basketball.throw.bind(g.basketball);
+    g.basketball.throw = (p) => { const ok = origThrow(p); if (ok) throws[p.index]++; return ok; };
+    g.basketball.onExplode = () => { booms++; };
+    const downSince = [null, null];
     let t = 0;
-    while (g.sm.is(GameStates.BASKETBALL) && t < 200) { g.step(dt); t += dt; }
+    while (g.sm.is(GameStates.BASKETBALL) && t < 200) {
+      g.step(dt); t += dt;
+      g.players.forEach((p, i) => {
+        if (p.mode === 'ragdoll') downSince[i] ??= t;
+        else downSince[i] = null;
+        if (downSince[i] !== null && t - downSince[i] > 8) everyoneGotUp = false;
+      });
+    }
     const sc = g.flow.match.minigameScores?.scores ?? [];
     baskets += sc.reduce((x, y) => x + y, 0);
     if (!g.sm.is(GameStates.BASKETBALL)) finished++;
-    console.log(`   partida ${k + 1}: ${sc.join(' × ')} em ${t.toFixed(0)} s · ${nades} granadas · dinheiro ${g.flow.match.money}`);
+    if (!(throws[0] > 0 && throws[1] > 0)) bothThrew = false;
+    console.log(`   partida ${k + 1}: ${sc.join(' × ')} em ${t.toFixed(0)} s · arremessos ${throws.join('/')} · explosões ${booms}`);
   }
   check(finished === 3, 'as 3 partidas de basquete terminaram');
   check(baskets > 0, `bots fizeram cestas (${baskets} no total)`);
+  check(bothThrew, 'os DOIS jogadores arremessam (cada um tem a sua bola)');
+  check(everyoneGotUp, 'ninguém ficou caído mais de 8 s (levanta depois da explosão)');
 }
 
 // ---------------------------------------------------------------- obstáculos: derrubam sem tirar vida

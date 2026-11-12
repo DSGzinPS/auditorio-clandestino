@@ -135,7 +135,7 @@ export class Arena {
   /** Chão, paredes e teto (o teto pode ser invisível, mas sempre existe fisicamente). */
   shell({ floor, wall, ceil, T = 2, ceilingVisible = true, grid = true }) {
     const { W, D, H } = this;
-    this.box(W + 2 * T, T, D + 2 * T, 0, -T / 2, 0, floor, { cast: false });
+    this.floor = this.box(W + 2 * T, T, D + 2 * T, 0, -T / 2, 0, floor, { cast: false });
     this.box(W + 2 * T, T, D + 2 * T, 0, H + T / 2, 0, ceil, { cast: false, visible: ceilingVisible });
     this.box(T, H, D + 2 * T, -W / 2 - T / 2, H / 2, 0, wall, { cast: false });
     this.box(T, H, D + 2 * T, W / 2 + T / 2, H / 2, 0, wall, { cast: false });

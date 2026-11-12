@@ -110,8 +110,8 @@ function buildViewmodel(def, playerColor) {
     return g;
   }
   if (def.id === 'ball') {
-    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.3, 18, 12), new THREE.MeshStandardMaterial({ color: 0xff7a1a, roughness: 0.7 }));
-    ball.position.set(-0.15, 0.05, -0.25);
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.15, 18, 12), new THREE.MeshStandardMaterial({ color: 0xff7a1a, roughness: 0.7 }));
+    ball.position.set(0.12, -0.04, -0.12); // canto da tela, sem tampar a mira
     g.add(ball);
     return g;
   }

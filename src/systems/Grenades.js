@@ -72,10 +72,14 @@ export class Grenades {
   }
 
   _explode(g) {
-    const cfg = CONFIG.grenade;
-    const c = g.body.position;
+    const c = g.body.position.clone();
     this._remove(g);
-    const R = cfg.radius;
+    this.explodeAt(c, CONFIG.grenade.radius, CONFIG.grenade.knock);
+  }
+
+  /** Explosão "moral": arremessa (ragdoll) quem estiver no raio, sem dano. */
+  explodeAt(c, R, knock) {
+    const cfg = { knock };
     for (const p of this.game.players) {
       const t = p.mode === 'controlled' ? p.controller.position : p.parts.torso.body.position;
       const dx = t.x - c.x, dz = t.z - c.z, dist = Math.hypot(dx, t.y - c.y, dz);
@@ -84,7 +88,6 @@ export class Grenades {
       const len = Math.hypot(dx, dz) || 1;
       shotKnockback(p, { x: dx / len, y: 0, z: dz / len }, cfg.knock * (0.35 + strength));
     }
-    this.game.basketball?.blast(c, R, cfg.ballPush);
     const fx = new THREE.Mesh(this.geo, this.flashMat.clone());
     fx.position.set(c.x, c.y, c.z);
     this.game.scene.add(fx);

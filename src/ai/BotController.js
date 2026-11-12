@@ -143,10 +143,19 @@ export class BotController {
     return { dYaw, dPitch };
   }
 
+  /** Ângulo de lançamento p/ acertar um ponto a d (horizontal) e h (altura). high = parábola alta. */
+  _launchAngle(d, h, v, high) {
+    const g = -CONFIG.physics.gravity;
+    const disc = v ** 4 - g * (g * d * d + 2 * h * v * v);
+    if (disc < 0 || d < 1e-3) return null;
+    return Math.atan((v * v + (high ? 1 : -1) * Math.sqrt(disc)) / (g * d));
+  }
+
   _basketball(dt, it) {
-    const g = this.game, me = this.self, ball = g.basketball, b = CONFIG.bot;
-    if (!ball || me.mode !== 'controlled' || me.frozen) return;
+    const g = this.game, me = this.self, balls = g.basketball, b = CONFIG.bot;
+    if (!balls || me.mode !== 'controlled' || me.frozen) return;
     const eye = me.getEyePosition(this._eye);
+    const v = CONFIG.basketball.throwSpeed;
     const err = b.aimError * 0.35;
     this.aimOffsetTimer -= dt;
     if (this.aimOffsetTimer <= 0) {
@@ -155,49 +164,44 @@ export class BotController {
       this.aimOffsetTimer = rand(0.5, 1);
     }
 
-    // COM A BOLA: chega a uma distância boa da cesta e arremessa em parábola alta
-    if (ball.holder === me) {
-      const hoop = (g.arena.extras.hoops ?? []).find((h) => h.forTeam === me.team);
-      if (!hoop) return;
-      const c = hoop.center;
-      const dx = c.x - eye.x, dz = c.z - eye.z, d = Math.hypot(dx, dz);
-      const h = c.y + 0.3 - eye.y;
-      const v = CONFIG.basketball.throwSpeed, gg = -CONFIG.physics.gravity;
-      const disc = v ** 4 - gg * (gg * d * d + 2 * h * v * v);
-      let mz = 0;
-      if (d > 7.5 || disc < 0) mz = 1;
-      else if (d < 3.5) mz = -1;
-      const pitch = disc >= 0 ? Math.atan((v * v + Math.sqrt(disc)) / (gg * d)) : 0.6;
-      const { dYaw, dPitch } = this._turnTo(dt, it, Math.atan2(-dx, -dz) + this.aimOffset.yaw, pitch + this.aimOffset.pitch);
-      it.moveZ = mz;
-      const steady = Math.hypot(me.controller.velocity.x, me.controller.velocity.z) < 1.5;
-      if (mz === 0 && steady && disc >= 0 && Math.abs(dYaw) < 0.025 && Math.abs(dPitch) < 0.025) it.fire = true;
+    const foe = this._nearestEnemy();
+    const fp = foe?.mode === 'controlled' ? foe.controller.position : foe?.parts.torso.body.position;
+    const foeDist = fp ? Math.hypot(fp.x - eye.x, fp.z - eye.z) : Infinity;
+
+    // de tempos em tempos decide: cesta ou bomba no adversário
+    this.bbTimer = (this.bbTimer ?? 0) - dt;
+    if (this.bbTimer <= 0) {
+      this.bbTarget = foe && foe.mode === 'controlled' && foeDist < 9 && Math.random() < 0.4 ? 'foe' : 'hoop';
+      this.bbTimer = rand(1, 2.2);
+    }
+
+    if (foe && foeDist < MELEE.range && Math.random() < 0.5) it.melee = true; // colou: empurra
+
+    if (this.bbTarget === 'foe' && fp) {
+      // bomba no pé do adversário (parábola baixa)
+      const dx = fp.x - eye.x, dz = fp.z - eye.z;
+      const ang = this._launchAngle(foeDist, (fp.y - 0.7) - eye.y, v, false);
+      const { dYaw, dPitch } = this._turnTo(dt, it, Math.atan2(-dx, -dz) + this.aimOffset.yaw, (ang ?? 0.3) + this.aimOffset.pitch);
+      it.moveZ = ang === null ? 1 : foeDist < 3 ? -1 : 0;
+      it.moveX = this.strafeDir * 0.5;
+      if (ang !== null && balls.ready(me) && Math.abs(dYaw) < 0.04 && Math.abs(dPitch) < 0.05) it.fire = true;
       return;
     }
 
-    const bp = ball.body.position;
-    // BOLA SOLTA: corre atrás dela
-    if (!ball.holder) {
-      const dx = bp.x - eye.x, dz = bp.z - eye.z;
-      this._turnTo(dt, it, Math.atan2(-dx, -dz), Math.atan2(bp.y - eye.y, Math.hypot(dx, dz)) * 0.5);
-      it.moveZ = 1;
-      it.sprint = Math.hypot(dx, dz) > 4;
-      if (bp.y > 2.2 && Math.hypot(dx, dz) < 2.5) it.jump = true; // bola no alto: pula pra pegar
-      return;
-    }
-
-    // ADVERSÁRIO COM A BOLA: persegue, soca de perto, granada de longe
-    const foe = ball.holder;
-    if (foe.team === me.team) return;
-    const fp = foe.controller.position;
-    const dx = fp.x - eye.x, dz = fp.z - eye.z, flat = Math.hypot(dx, dz);
-    const lob = flat > 4 ? 0.18 + flat * 0.01 : Math.atan2(fp.y - eye.y, flat);
-    const { dYaw, dPitch } = this._turnTo(dt, it, Math.atan2(-dx, -dz) + this.aimOffset.yaw, lob);
-    it.moveZ = flat > 1.1 ? 1 : 0;
-    it.moveX = this.strafeDir * 0.3;
-    it.sprint = flat > 5;
-    if (flat < MELEE.range && Math.abs(dYaw) < 0.5) it.melee = true;
-    else if (flat > 4.5 && flat < 13 && g.grenades.ready(me) && Math.abs(dYaw) < 0.06 && Math.abs(dPitch) < 0.08) it.fire = true;
+    // cesta: chega a uma distância boa e arremessa em parábola alta
+    const hoop = (g.arena.extras.hoops ?? []).find((h) => h.forTeam === me.team);
+    if (!hoop) return;
+    const c = hoop.center;
+    const dx = c.x - eye.x, dz = c.z - eye.z, d = Math.hypot(dx, dz);
+    const ang = this._launchAngle(d, c.y + 0.3 - eye.y, v, true);
+    let mz = 0;
+    if (d > 7.5 || ang === null) mz = 1;
+    else if (d < 3.5) mz = -1;
+    const { dYaw, dPitch } = this._turnTo(dt, it, Math.atan2(-dx, -dz) + this.aimOffset.yaw, (ang ?? 0.6) + this.aimOffset.pitch);
+    it.moveZ = mz;
+    it.sprint = d > 10;
+    const steady = Math.hypot(me.controller.velocity.x, me.controller.velocity.z) < 1.5;
+    if (mz === 0 && steady && ang !== null && balls.ready(me) && Math.abs(dYaw) < 0.025 && Math.abs(dPitch) < 0.025) it.fire = true;
   }
 
   // ---------------------------------------------------------------- combate

@@ -107,7 +107,7 @@ export const CONFIG = {
       { type: 'pvp', rounds: 4, map: 'estudio', label: 'PVP NO ESTÚDIO' },
       { type: 'rps', bestOf: 3, map: 'estudio', label: 'PEDRA, PAPEL E TESOURA' },
       { type: 'pvp', rounds: 4, map: 'bastidores', label: 'PVP NOS BASTIDORES' },
-      { type: 'basketball', bestOf: 3, map: 'quadra', label: 'BASQUETE COM GRANADAS' },
+      { type: 'basketball', bestOf: 3, map: 'quadra', label: 'BASQUETE COM BOLA-BOMBA' },
       { type: 'pvp', rounds: 4, map: 'rua', label: 'PVP FINAL NA RUA' },
     ],
     buyTime: 15,             // segundos de loja antes de cada round
@@ -141,7 +141,12 @@ export const CONFIG = {
     timeLimit: 150,          // estourou: vence quem tiver mais cestas
     ballRadius: 0.3,
     throwSpeed: 10.5,        // m/s do arremesso (mire pra cima!)
-    kickoffPause: 1.6,       // pausa antes de cada "bola ao alto"
+    reload: 0.9,             // segundos até a próxima bola aparecer na mão
+    ballFuse: 6,             // bola que não tocou em nada explode sozinha depois disso
+    blastRadius: 4.2,        // raio da explosão (chão/jogador)
+    blastKnock: 1.5,         // força do arremesso da explosão (sem dano)
+    recoverTime: 1.6,        // aqui levanta mais rápido
+    kickoffPause: 1.6,       // pausa antes de recomeçar depois da cesta
   },
 
   grenade: {

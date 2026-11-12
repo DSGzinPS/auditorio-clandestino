@@ -69,7 +69,7 @@ export class Menu {
             <p>Quiz: <b>1/2</b> · Pedra/papel/tesoura: <b>1/2/3</b> · Loja: <b>1–6</b>, <b>Enter</b> pronto</p>`}
             <p>Errou no quiz ou perdeu no pedra-papel-tesoura: <b>vai pro teto</b>. Quem fizer menos pontos num minigame
               joga o PvP seguinte com o <b>patinho</b> (fez 0) ou o <b>estilingue</b>, sem loja. Vence quem ganhar mais rounds.</p>
-            <p>Basquete: encoste na bola pra pegar · ATIRAR arremessa (mire pra cima) ou joga granada · SOCO empurra.</p>
+            <p>Basquete: cada um tem a sua bola-bomba · ATIRAR arremessa (mire pra cima pra cesta) · no chão ou em alguém ela EXPLODE e arremessa · SOCO empurra · ninguém morre.</p>
           </div>
           <button data-act="back">VOLTAR</button>
         </div>

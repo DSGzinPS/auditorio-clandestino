@@ -107,8 +107,8 @@ export const MAPS = {
         a.extras.hoops.push({ center, radius: R, forTeam: side < 0 ? 0 : 1 });
       }
       a.lights({ hemi: 1.2, key: 1.4, colors: [0xffffff, 0xffd23f, 0xffffff, 0x3dd6ff], point: 50 });
-      a.sign([['BASQUETE COM GRANADAS', 92]], { x: -a.W / 2 + 0.02, z: 0, y: 6, rotY: Math.PI / 2, w: 10, h: 2.2, bg: '#ff6a00', fg: '#111111' });
-      a.sign([['BASQUETE COM GRANADAS', 92]], { x: a.W / 2 - 0.02, z: 0, y: 6, rotY: -Math.PI / 2, w: 10, h: 2.2, bg: '#ff6a00', fg: '#111111' });
+      a.sign([['BASQUETE COM BOLA-BOMBA', 88]], { x: -a.W / 2 + 0.02, z: 0, y: 6, rotY: Math.PI / 2, w: 10, h: 2.2, bg: '#ff6a00', fg: '#111111' });
+      a.sign([['BASQUETE COM BOLA-BOMBA', 88]], { x: a.W / 2 - 0.02, z: 0, y: 6, rotY: -Math.PI / 2, w: 10, h: 2.2, bg: '#ff6a00', fg: '#111111' });
     },
   },
 

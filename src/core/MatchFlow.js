@@ -60,6 +60,9 @@ export class MatchFlow {
     const s = this.stage;
     const g = this.game;
     if (!s) return g.sm.change(GameStates.MATCH_END);
+    // toda etapa começa com todo mundo vivo (antes, quem morria no último round
+    // do PvP continuava "morto" no minigame seguinte e não levantava mais)
+    g.players.forEach((p) => p.revive(false));
     this._loadMap(s.map ?? 'estudio');
     g.hud.flash?.(null, this.stageTitle(), 'big');
 

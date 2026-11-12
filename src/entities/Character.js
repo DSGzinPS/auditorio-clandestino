@@ -457,7 +457,8 @@ export class Character {
     }
 
     const ch = CONFIG.character;
-    if (this.autoRecover && !this.dead && this.ragdollTimer > ch.recoverTime &&
+    const recoverTime = this.recoverTime ?? ch.recoverTime;
+    if (this.autoRecover && !this.dead && this.ragdollTimer > recoverTime &&
         (torso.velocity.length() < ch.recoverSpeedThreshold || this.ragdollTimer > ch.recoverMaxTime)) {
       this.recover();
     }

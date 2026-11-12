@@ -35,12 +35,12 @@ O APK é gerado no GitHub (`.github/workflows/android-apk.yml`): a cada push na 
 | 2 | **PvP**, 4 rounds, loja de 15 s | Estúdio | round +$500 · kill +$300 × multiplicadores | — |
 | 3 | **Pedra, papel e tesoura** (melhor de 3) | Estúdio | +$300 por rodada ganha | perdeu a rodada → teto |
 | 4 | **PvP**, 4 rounds | **Bastidores**: corredores, barra giratória no centro e paredes deslizantes que derrubam | idem | — |
-| 5 | **Basquete com granadas** (melhor de 3) | **Quadra** | +$400 por cesta | ninguém morre: soco empurra, granada arremessa e quem cai solta a bola |
+| 5 | **Basquete com bola-bomba** (melhor de 3) | **Quadra** | +$400 por cesta | ninguém morre: no chão ou num jogador a bola explode e arremessa; quem voa levanta com outra bola |
 | 6 | **PvP final**, 4 rounds | **Rua** ("sapo atravessando"): carros só derrubam, quem mata é tiro | idem | — |
 
 - **Cada minigame (1, 3 e 5) pune quem fez menos pontos no PvP seguinte:** com 0 pontos fica com o **patinho**, com 1 ou mais fica com o **estilingue**, e em nenhum dos casos pode comprar nada nos 4 rounds. Se todos empatarem, **"saem na mão"**: desempate só no soco.
 - **Vencedor da partida:** o time com mais rounds ganhos nos 3 PvPs (12 rounds).
-- **Basquete:** encoste na bola para pegar. ATIRAR arremessa a bola (mire para cima!) e, sem a bola, joga uma granada (3 s de recarga). SOCO empurra. A cesta do outro lado é a sua.
+- **Basquete:** cada jogador tem a própria bola-bomba (outra aparece na mão 0,9 s depois de arremessar). Na cesta é ponto. No chão ou num jogador ela explode e arremessa quem estiver perto, sem dano. SOCO empurra. A cesta do outro lado é a sua.
 - Para testar uma etapa direto: painel **G** → Testes → "Pular para etapa".
 
 Os mapas ficam em `src/world/maps.js` e o roteiro em `CONFIG.match.stages`.
