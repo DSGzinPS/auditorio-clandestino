@@ -29,6 +29,7 @@ export class HUD {
         <div class="team-score" data-team="1"></div>
       </div>
       <div class="divider"></div>
+      <button class="pause-btn" tabindex="-1" title="Pausa">⏸</button>
       <div class="killfeed"></div>
       ${humans.map((i, slot) => `
         <section class="half half-${slot}" data-player="${i}" style="--accent:${hex(players[i].color)}">
@@ -76,6 +77,7 @@ export class HUD {
           </div>
           <div class="loadout"><div class="weapon-name"></div><div class="money"></div></div>
           <div class="flash"></div>
+          <div class="strip hidden"></div>
         </section>`).join('')}
       <div class="banner hidden"></div>
       <div class="lock-hint hidden">Clique na tela para mirar com o mouse · ESC solta</div>
@@ -87,6 +89,11 @@ export class HUD {
     this.lockHint = root.querySelector('.lock-hint');
     this.banner = root.querySelector('.banner');
     this.feed = root.querySelector('.killfeed');
+
+    this.onPause = null;
+    const pb = root.querySelector('.pause-btn');
+    pb.addEventListener('mousedown', (e) => e.preventDefault());
+    pb.addEventListener('click', () => { if (!document.body.classList.contains('hud-editing')) this.onPause?.(); });
 
     root.querySelectorAll('button[data-o]').forEach((btn) => {
       btn.addEventListener('mousedown', (e) => e.preventDefault()); // não rouba o foco
@@ -100,6 +107,17 @@ export class HUD {
       btn.addEventListener('mousedown', (e) => e.preventDefault());
       btn.addEventListener('click', () => { this.onReady?.(Number(btn.dataset.p)); this.onUserGesture?.(); });
     });
+  }
+
+  /** Elementos que o editor de HUD pode mover/redimensionar (só da 1ª tela). */
+  editables() {
+    const h = this.halves[0];
+    return [
+      ['pause', this.root.querySelector('.pause-btn'), 'Pausa'],
+      ['topbar', this.root.querySelector('.topbar'), 'Placar'],
+      ['vitals', h?.querySelector('.vitals'), 'Vida e colete'],
+      ['loadout', h?.querySelector('.loadout'), 'Arma e dinheiro'],
+    ];
   }
 
   _set(el, key, value, prop = 'textContent') {
@@ -138,8 +156,9 @@ export class HUD {
 
   // ---------------------------------------------------------------- quiz
   showQuiz(q, { index = 0, total = 1, reward = 0 } = {}) {
+    this.hideStrip();
     for (const h of this.halves) {
-      h.querySelector('.quiz').classList.remove('hidden');
+      h.querySelector('.quiz').classList.remove('hidden', 'mini');
       h.querySelector('.quiz-count').textContent = `PERGUNTA ${index + 1}/${total}`;
       h.querySelector('.quiz-question').textContent = q.text;
       h.querySelector('.quiz-reward').textContent = `Acertou: +$${reward} · Errou: TETO`;
@@ -174,6 +193,34 @@ export class HUD {
     }
   }
 
+  /**
+   * Alguém foi arremessado: libera a vista. Quem já respondeu perde o cartão;
+   * quem ainda não respondeu fica com um cartão mini no rodapé (ainda dá pra responder).
+   */
+  quizWatch(answered) {
+    for (const h of this.halves) {
+      const pi = Number(h.dataset.player);
+      const card = h.querySelector('.quiz');
+      if (answered[pi] !== null) card.classList.add('hidden');
+      else card.classList.add('mini');
+    }
+  }
+
+  /** Faixa discreta no topo (resultado enquanto todo mundo assiste ao voo). */
+  strip(text, ms = 2600) {
+    for (const h of this.halves) {
+      const el = h.querySelector('.strip');
+      el.textContent = text;
+      el.classList.remove('hidden');
+    }
+    clearTimeout(this._stripT);
+    this._stripT = setTimeout(() => this.hideStrip(), ms);
+  }
+
+  hideStrip() {
+    for (const h of this.halves) h.querySelector('.strip').classList.add('hidden');
+  }
+
   revealCorrect(ci) {
     for (const h of this.halves) h.querySelectorAll('.quiz-options button')[ci].classList.add('correct');
   }
@@ -190,6 +237,7 @@ export class HUD {
   }
 
   showRps({ wins, need, reward, round }) {
+    this.hideStrip();
     for (const h of this.halves) {
       h.querySelector('.rps').classList.remove('hidden');
       h.querySelector('.rps-count').textContent = `RODADA ${round} · QUEM FIZER ${need} GANHA · +$${reward}`;

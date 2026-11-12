@@ -181,6 +181,8 @@ export class BotController {
       const dx = bp.x - eye.x, dz = bp.z - eye.z;
       this._turnTo(dt, it, Math.atan2(-dx, -dz), Math.atan2(bp.y - eye.y, Math.hypot(dx, dz)) * 0.5);
       it.moveZ = 1;
+      it.sprint = Math.hypot(dx, dz) > 4;
+      if (bp.y > 2.2 && Math.hypot(dx, dz) < 2.5) it.jump = true; // bola no alto: pula pra pegar
       return;
     }
 
@@ -193,6 +195,7 @@ export class BotController {
     const { dYaw, dPitch } = this._turnTo(dt, it, Math.atan2(-dx, -dz) + this.aimOffset.yaw, lob);
     it.moveZ = flat > 1.1 ? 1 : 0;
     it.moveX = this.strafeDir * 0.3;
+    it.sprint = flat > 5;
     if (flat < MELEE.range && Math.abs(dYaw) < 0.5) it.melee = true;
     else if (flat > 4.5 && flat < 13 && g.grenades.ready(me) && Math.abs(dYaw) < 0.06 && Math.abs(dPitch) < 0.08) it.fire = true;
   }
@@ -298,12 +301,15 @@ export class BotController {
         this.strafeTimer = rand(b.strafeMin, b.strafeMax);
         this.stuckTimer = 0;
         mx = this.strafeDir;
+        it.jump = Math.random() < 0.5; // às vezes pula o obstáculo
       }
     } else {
       this.stuckTimer = 0;
     }
     it.moveX = mx;
     it.moveZ = mz;
+    it.sprint = mz > 0 && (!sees || flat > rMax * 1.3 || (duckOnFloor && flat > 4));
+    if (sees && Math.random() < dt * 0.25) it.jump = true; // pulinho de vez em quando, pra dificultar a mira
   }
 
   _targetPoint(foe, out) {

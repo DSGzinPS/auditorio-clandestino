@@ -31,6 +31,7 @@ export class QuizState extends State {
     this.answers = g.players.map(() => null);
     this.timer = CONFIG.quiz.timeLimit;
     this.phase = 'asking';
+    this.someoneFlying = false;
     g.hud.setPhase(`QUIZ · ${this.index + 1}/${this.total}`);
     g.hud.showQuiz(this.question, { index: this.index, total: this.total, reward: CONFIG.economy.quizCorrect });
     g.schemes.forEach((s) => s.onQuizStart?.(this.question)); // o bot começa a "pensar"
@@ -48,7 +49,13 @@ export class QuizState extends State {
       if (this.answers.every((a) => a !== null)) {
         this.phase = 'reveal';
         this.revealTimer = CONFIG.quiz.revealTime;
-        g.hud.revealCorrect(this.question.correctIndex);
+        if (this.someoneFlying) {
+          // alguém está voando: some com os cartões e mostra só a resposta numa faixa
+          g.hud.hideQuiz();
+          g.hud.strip(`Resposta certa: ${this.question.options[this.question.correctIndex]}`);
+        } else {
+          g.hud.revealCorrect(this.question.correctIndex);
+        }
       }
       return;
     }
@@ -79,7 +86,9 @@ export class QuizState extends State {
     } else {
       punishLaunch(g.players[playerIndex]); // A MECÂNICA DE PUNIÇÃO
       g.hud.flash(playerIndex, optionIndex === -1 ? 'TEMPO ESGOTADO!' : pick(WRONG_LINES), 'bad');
+      this.someoneFlying = true;
     }
+    if (this.someoneFlying) g.hud.quizWatch(this.answers); // libera a vista pra ver o voo
   }
 
   exit() {

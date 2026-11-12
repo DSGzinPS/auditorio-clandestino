@@ -61,8 +61,8 @@ export function createDebugGUI(game) {
 
   const bot = game.players.find((p) => p.isBot) ?? game.players[1];
   const actions = {
-    newMatch: () => game.flow.newMatch(),
-    pvp: () => game.flow.skipToPvp(),
+    newMatch: () => game.playFrom(0),
+    pvp: () => game.playFrom(CONFIG.match.stages.findIndex((s) => s.type === 'pvp')),
     money: () => { if (game.flow.match) game.flow.match.money[0] += 1000; },
     punishP1: () => punishLaunch(game.players[0]),
     punishBot: () => punishLaunch(bot),
@@ -72,7 +72,7 @@ export function createDebugGUI(game) {
   const a = gui.addFolder('Testes');
   const stageNames = Object.fromEntries(CONFIG.match.stages.map((st, i) => [`${i + 1}. ${st.label ?? st.type}`, i]));
   const jump = { etapa: 0 };
-  a.add(jump, 'etapa', stageNames).name('Pular para etapa').onChange((i) => game.flow.jumpTo(Number(i)));
+  a.add(jump, 'etapa', stageNames).name('Pular para etapa').onChange((i) => game.playFrom(Number(i)));
   a.add(actions, 'newMatch').name('Nova partida');
   a.add(actions, 'pvp').name('Pular direto pro PvP');
   a.add(actions, 'money').name('+$1000 pra mim');
@@ -82,11 +82,9 @@ export function createDebugGUI(game) {
   a.add(actions, 'killBot').name(`Matar ${bot.name} (no round)`);
 
   gui.close();
-  let visible = true;
   window.addEventListener('keydown', (e) => {
     if (e.code !== 'KeyG') return;
-    visible = !visible;
-    visible ? gui.show() : gui.hide();
+    gui._hidden ? gui.show() : gui.hide();
   });
   return gui;
 }

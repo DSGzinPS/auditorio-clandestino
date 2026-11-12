@@ -19,6 +19,8 @@ export class Arena {
     this.time = 0;
     this.mapId = null;
     this.def = null;
+    this.shadows = true;
+    this.keyLight = null;
     this.setMap('estudio');
   }
 
@@ -151,8 +153,9 @@ export class Arena {
     this.group.add(new THREE.HemisphereLight(0xdfe6ff, 0x2a2233, hemi));
     const k = new THREE.DirectionalLight(0xffffff, key);
     k.position.set(W * 0.25, H - 0.5, D * 0.18);
-    k.castShadow = true;
+    k.castShadow = this.shadows;
     k.shadow.mapSize.set(2048, 2048);
+    this.keyLight = k;
     const r = Math.max(W, D) * 0.65;
     Object.assign(k.shadow.camera, { left: -r, right: r, top: r, bottom: -r, near: 0.5, far: H + 40 });
     this.group.add(k);

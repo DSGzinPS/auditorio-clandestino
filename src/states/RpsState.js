@@ -102,6 +102,12 @@ export class RpsState extends State {
       text = `${winners.map((i) => g.players[i].name).join(' + ')} venceu a rodada`;
     }
     g.hud.revealRps(this.picks, this.wins, text);
+    if (winners.length) {
+      // alguém vai pro teto: some com o cartão pra todo mundo assistir
+      g.hud.hideRps();
+      const icons = ['✊', '✋', '✌️'];
+      g.hud.strip(g.players.map((p, i) => `${p.name} ${this.picks[i] === null ? '—' : icons[this.picks[i]]} ${this.wins[i]}`).join('   ×   '));
+    }
   }
 
   exit() {

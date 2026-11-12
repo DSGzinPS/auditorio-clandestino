@@ -27,9 +27,14 @@ export class Input {
       this.mouseButtons.clear();
     });
 
+    this.onLockLost = null; // jogador apertou ESC (não fomos nós que soltamos)
+    this._releasing = false;
     document.addEventListener('pointerlockchange', () => {
+      const was = this.locked;
       this.locked = document.pointerLockElement === element;
       if (!this.locked) this.mouseButtons.clear();
+      if (was && !this.locked && !this._releasing) this.onLockLost?.();
+      this._releasing = false;
     });
     document.addEventListener('mousemove', (e) => {
       if (!this.locked) return;
@@ -61,7 +66,10 @@ export class Input {
   }
 
   releaseLock() {
-    if (document.pointerLockElement) document.exitPointerLock();
+    if (document.pointerLockElement) {
+      this._releasing = true;
+      document.exitPointerLock();
+    }
   }
 
   endFrame() {

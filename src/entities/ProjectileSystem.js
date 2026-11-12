@@ -7,7 +7,6 @@ import * as CANNON from 'cannon-es';
 import { CONFIG } from '../config.js';
 import { GROUP } from '../physics/PhysicsWorld.js';
 
-const HEAD_ZONE = 0.42; // acima do centro do controller = cabeça (topo do tronco + antena/fone)
 
 export class ProjectileSystem {
   constructor(scene, physics) {
@@ -75,7 +74,7 @@ export class ProjectileSystem {
     let headshot = false;
     if (c && target.mode === 'controlled') {
       const onTarget = c.bi === e.body ? c.bi.position.vadd(c.ri) : c.bj.position.vadd(c.rj);
-      headshot = onTarget.y > target.controller.position.y + HEAD_ZONE;
+      headshot = onTarget.y > target.headY(); // topo do tronco + antena/fone (desce agachado)
     }
 
     this.pendingHits.push({

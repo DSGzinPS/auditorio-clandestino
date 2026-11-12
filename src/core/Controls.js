@@ -11,6 +11,9 @@ export const blankIntent = () => ({
   lookY: 0,   // radianos neste frame (+ = olha p/ baixo)
   fire: false,
   melee: false,
+  jump: false,   // apertou pular neste frame
+  sprint: false, // segurando correr
+  crouch: false, // agachado
   answer: null, // 0 | 1 | null  (quiz)
   buy: null,    // índice no SHOP_ORDER | null  (loja)
   ready: false, // "pronto" na loja
@@ -22,6 +25,7 @@ export const P1_BINDINGS = {
   forward: ['KeyW'], back: ['KeyS'], left: ['KeyA'], right: ['KeyD'],
   fire: ['KeyF'], // além do clique esquerdo
   melee: ['KeyV'], // além do clique direito
+  jump: ['Space'], sprint: ['ShiftLeft'], crouch: ['KeyC', 'ControlRight'],
   answerA: ['Digit1'], answerB: ['Digit2'], answerC: ['Digit3'],
   buy: BUY_KEYS,
   ready: ['Enter', 'KeyR'],
@@ -34,6 +38,7 @@ export const P2_BINDINGS = {
   lookUp: ['KeyI', 'Numpad8'], lookDown: ['KeyK', 'Numpad5'],
   fire: ['Enter', 'NumpadEnter', 'Numpad0'],
   melee: ['ShiftRight', 'NumpadDecimal'],
+  jump: ['Numpad7'], sprint: ['Numpad9'], crouch: ['NumpadMultiply'],
   answerA: ['Digit9', 'Numpad1'], answerB: ['Digit0', 'Numpad2'], answerC: ['Digit8', 'Numpad3'],
   buy: [], // P2 compra clicando
   ready: ['NumpadAdd'],
@@ -60,6 +65,9 @@ export class KeyboardMouseScheme {
     it.lookY = m.dy * CONFIG.character.mouseSensitivity;
     it.fire = (i.locked && i.mouseButtons.has(0)) || i.anyDown(b.fire);
     it.melee = (i.locked && i.mouseButtons.has(2)) || i.anyDown(b.melee);
+    it.jump = i.anyPressed(b.jump);
+    it.sprint = i.anyDown(b.sprint);
+    it.crouch = i.anyDown(b.crouch);
     if (i.anyPressed(b.answerA)) it.answer = 0;
     else if (i.anyPressed(b.answerB)) it.answer = 1;
     else if (i.anyPressed(b.answerC)) it.answer = 2;
@@ -74,6 +82,9 @@ export class KeyboardMouseScheme {
       it.lookY += t.lookDY * s;
       it.fire ||= t.fire;
       it.melee ||= t.melee;
+      it.jump ||= t.jump;
+      it.sprint ||= t.sprint;
+      it.crouch ||= t.crouch;
     }
     return it;
   }
@@ -97,6 +108,9 @@ export class KeyboardGamepadScheme {
     it.lookY = axis(i, b.lookDown, b.lookUp) * ks;
     it.fire = i.anyDown(b.fire);
     it.melee = i.anyDown(b.melee);
+    it.jump = i.anyPressed(b.jump);
+    it.sprint = i.anyDown(b.sprint);
+    it.crouch = i.anyDown(b.crouch);
     it.ready = i.anyPressed(b.ready);
     if (i.anyPressed(b.answerA)) it.answer = 0;
     else if (i.anyPressed(b.answerB)) it.answer = 1;
@@ -114,6 +128,11 @@ export class KeyboardGamepadScheme {
       it.fire ||= btn(7);  // RT
       it.melee ||= btn(5); // RB
       it.ready ||= btn(9); // Start
+      const j = btn(0);
+      if (j && !this.prevJump) it.jump = true; // A
+      this.prevJump = j;
+      it.sprint ||= btn(10); // L3
+      it.crouch ||= btn(11); // R3
       const a = btn(2), bb = btn(1), c = btn(3); // X = opção 1, B = opção 2, Y = opção 3
       if (a && !this.prevA) it.answer = 0;
       else if (bb && !this.prevB) it.answer = 1;

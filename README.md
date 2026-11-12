@@ -13,6 +13,14 @@ npm test                 # física + bot + PARTIDA INTEIRA bot × bot (regras da
 npm run build:standalone # gera dist-standalone/index.html (abre com dois cliques, sem servidor)
 ```
 
+## Menu, pausa e HUD
+
+- **Menu principal:** Jogar, dificuldade do bot, "Começar em" (pula para qualquer etapa), Configurações (sensibilidade da mira, gráficos Leve/Médio/Bonito, força do caos, painel de teste), Ajustar HUD e Como jogar. Tudo fica salvo no aparelho.
+- **Pausa:** ESC ou P no PC, botão ⏸ na tela (no celular também). Tem Continuar, Ajustar HUD, Configurações, Reiniciar e Sair para o menu.
+- **Ajustar HUD:** arraste os botões (Atirar, Soco, Pular, Agachar, Correr), a pausa, o placar, a vida e a arma/dinheiro. Toque num item para mudar o tamanho. "Padrão" desfaz tudo.
+- **Movimento:** PC: Espaço pula, Shift corre, C agacha. Celular: botão PULAR; AGACHAR e CORRER ligam/desligam (o joystick no talo também corre). Agachado você anda mais devagar, o olho desce e o hitbox fica menor (a cabeça baixa junto).
+- **Quiz e pedra-papel-tesoura:** quando alguém vai pro teto, o cartão some para todo mundo assistir ao voo. Quem ainda não respondeu fica com um cartão mini no rodapé.
+
 ## Celular / APK
 
 No celular aparecem controles de toque: joystick à esquerda (aparece onde o dedo encostar), arrastar à direita para mirar, **ATIRAR** (dá para arrastar e mirar enquanto atira) e **SOCO**. Quiz e loja são tocados direto nos botões.

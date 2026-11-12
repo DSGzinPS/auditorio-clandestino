@@ -29,6 +29,9 @@ import { Input } from './Input.js';
 import { HUD, NullHUD } from '../ui/HUD.js';
 import { createDebugGUI } from './DebugGUI.js';
 import { TouchControls, isTouchDevice } from './TouchControls.js';
+import { Settings } from './Settings.js';
+import { Menu } from '../ui/Menu.js';
+import { LayoutEditor } from '../ui/LayoutEditor.js';
 
 const PLAYER_DEFS = [
   { name: 'RÁDIO', color: 0xff8a3d, variant: 'radio' },
@@ -128,24 +131,132 @@ export class Game {
 
     this.renderer.domElement.addEventListener('click', () => {
       const fighting = this.sm.is(GameStates.ROUND) || this.sm.is(GameStates.TIEBREAK) || this.sm.is(GameStates.BASKETBALL);
-      if (fighting && !this.input.locked && !this.isTouch) this.input.requestLock();
+      if (fighting && !this.paused && !this.input.locked && !this.isTouch) this.input.requestLock();
     });
 
     this.gui = createDebugGUI(this);
     this.timer = new THREE.Timer();
     this.timer.connect(document); // pausa o dt quando a aba fica oculta
+
+    // menu, pausa, configurações e editor de HUD
+    this.inMenu = true;
+    this.paused = true;
+    this.settings = new Settings({ touch: this.isTouch });
+    this.layout = new LayoutEditor({
+      onOpen: () => {
+        document.body.classList.remove('in-menu');
+        if (this.touch) { this.touch.enabled = false; this.touch.setVisible(true); }
+      },
+      onClose: () => {
+        if (this.touch) { this.touch.enabled = true; this.touch._resetAll(); }
+        if (this.inMenu) document.body.classList.add('in-menu');
+      },
+    });
+    this.layout.register(this.hud.editables());
+    if (this.touch) this.layout.register(this.touch.editables());
+    this.menu = new Menu(this, this.settings);
+    this.hud.onPause = () => this.pause();
+    this.input.onLockLost = () => { if (this._fighting()) this.pause(); };
+    window.addEventListener('keydown', (e) => {
+      if (this.inMenu || this.layout.isOpen) return;
+      if (e.code === 'Escape' || e.code === 'KeyP') this.paused ? this.resume() : this.pause();
+    });
+    this.settings.apply(this);
+  }
+
+  _fighting() {
+    return this.sm.is(GameStates.ROUND) || this.sm.is(GameStates.TIEBREAK) || this.sm.is(GameStates.BASKETBALL);
+  }
+
+  /** Gráficos: leve (celular fraco) · médio · bonito. */
+  setQuality(q) {
+    if (!this.renderer) return;
+    const r = this.renderer.renderer;
+    const dpr = window.devicePixelRatio || 1;
+    r.setPixelRatio(q === 'baixa' ? 1 : q === 'media' ? Math.min(dpr, 1.25) : Math.min(dpr, 2));
+    r.setSize(window.innerWidth, window.innerHeight);
+    this.arena.shadows = q !== 'baixa';
+    if (this.arena.keyLight) this.arena.keyLight.castShadow = this.arena.shadows;
   }
 
   start() {
-    this.flow.newMatch();
     this.renderer?.renderer.setAnimationLoop((t) => this.tick(t));
+    this.showMainMenu();
+  }
+
+  showMainMenu() {
+    this.inMenu = true;
+    this.paused = true;
+    document.body.classList.add('in-menu');
+    this.input.releaseLock();
+    this.menu.show('main');
+  }
+
+  startMatch() {
+    this.playFrom(Number(this.settings.data.startStage) || 0);
+  }
+
+  /** Começa (ou recomeça) a partida a partir da etapa N, saindo do menu. */
+  playFrom(stage = 0) {
+    this.sm.current?.exit();
+    this.sm.current = null;
+    this.sm.currentName = null;
+    this.inMenu = false;
+    this.paused = false;
+    document.body.classList.remove('in-menu');
+    this.menu.hide();
+    this.settings.apply(this);
+    if (stage > 0) this.flow.jumpTo(stage);
+    else this.flow.newMatch();
+  }
+
+  pause() {
+    if (this.inMenu || this.paused) return;
+    this.paused = true;
+    this.input.releaseLock();
+    this.menu.show('pause');
+  }
+
+  resume() {
+    if (this.inMenu) return;
+    this.paused = false;
+    this.menu.hide();
+  }
+
+  quitToMenu() {
+    this.sm.current?.exit();
+    this.sm.current = null;
+    this.sm.currentName = null;
+    this.projectiles.clear();
+    this.grenades.clear();
+    this.flow.match = null;
+    this.flow.stageIndex = -1;
+    this.arena.setMap('estudio');
+    this.players.forEach((p) => {
+      p.revive(false);
+      p.spawn = this.arena.spawnFor(p.index);
+      p.teleport(p.spawn.position, p.spawn.yaw);
+      p.frozen = true;
+    });
+    this.showMainMenu();
   }
 
   tick(timestamp) {
     this.timer.update(timestamp);
-    this.step(Math.min(this.timer.getDelta(), 0.1));
-    this.touch?.setVisible(this.sm.is(GameStates.ROUND) || this.sm.is(GameStates.TIEBREAK) || this.sm.is(GameStates.BASKETBALL));
+    const dt = Math.min(this.timer.getDelta(), 0.1);
+    if (!this.paused) this.step(dt);
+    else this.lastDt = 0;
+    if (!this.layout.isOpen) this.touch?.setVisible(!this.paused && this._fighting());
     this.views.forEach((v) => v.update(this.lastDt));
+    if (this.inMenu) { // câmera passeando pelo estúdio atrás do menu
+      this._menuT = (this._menuT ?? 0) + dt;
+      const cam = this.views[0]?.camera;
+      if (cam) {
+        cam.position.set(Math.sin(this._menuT * 0.12) * 13, 5.5, Math.cos(this._menuT * 0.12) * 13);
+        cam.lookAt(0, 1.4, 0);
+        cam.layers.enable(1);
+      }
+    }
     this.renderer.render(this.scene, this.views.map((v) => v.camera));
     this.hud.update(this);
     this.input.endFrame();

@@ -147,7 +147,8 @@ kbd { font: 800 .5em system-ui, sans-serif; background: #fff; color: #111; borde
 
 /* ===================== Celular (toque) ===================== */
 html, body { touch-action: none; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
-.touch-layer { position: fixed; inset: 0; z-index: 1; }
+.touch-layer { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+.touch-layer > * { pointer-events: auto; }
 .touch-move { position: absolute; left: 0; top: 0; bottom: 0; width: 42%; }
 .touch-look { position: absolute; right: 0; top: 0; bottom: 0; width: 58%; }
 .stick-base {
@@ -162,7 +163,10 @@ html, body { touch-action: none; overscroll-behavior: none; -webkit-tap-highligh
 }
 .touch-fire { right: 4%; bottom: 14%; width: 96px; height: 96px; background: #ff2e88aa; font-size: 15px; }
 .touch-melee { right: calc(4% + 108px); bottom: 8%; width: 66px; height: 66px; background: #3dd6ffaa; font-size: 13px; }
-.touch-btn.on { filter: brightness(1.4); transform: scale(.94); }
+.touch-btn.on { filter: brightness(1.45); box-shadow: 0 0 0 4px #ffffffaa; }
+.touch-jump { right: calc(4% + 14px); bottom: calc(14% + 108px); width: 70px; height: 70px; background: #ffd23faa; font-size: 13px; color: #111; text-shadow: none; }
+.touch-crouch { right: calc(4% + 196px); bottom: 6%; width: 58px; height: 58px; background: #8a5cffaa; font-size: 10px; }
+.touch-sprint { left: 3%; top: 32%; width: 58px; height: 58px; background: #5dff9a88; font-size: 10px; color: #111; text-shadow: none; }
 .touch .vitals { bottom: auto; top: 42px; width: 180px; }
 .touch .loadout { bottom: auto; top: 42px; right: auto; left: 214px; text-align: left; }
 .touch .weapon-name { font-size: 14px; }
@@ -227,3 +231,69 @@ html, body { touch-action: none; overscroll-behavior: none; -webkit-tap-highligh
 }
 .touch .half:has(.quiz:not(.hidden)) .vitals, .touch .half:has(.quiz:not(.hidden)) .loadout,
 .touch .half:has(.rps:not(.hidden)) .vitals, .touch .half:has(.rps:not(.hidden)) .loadout { display: none; }
+
+/* cartão mini (quem ainda não respondeu enquanto o outro voa) e faixa de resultado */
+.quiz.mini { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%) scale(.6); transform-origin: bottom center; opacity: .93; }
+.strip {
+  position: absolute; top: 96px; left: 50%; transform: translateX(-50%); white-space: nowrap;
+  background: #000c; border: 2px solid #ffd23f; border-radius: 999px; padding: 6px 18px; font-weight: 900; font-size: 18px;
+}
+
+/* ===================== Menu ===================== */
+body.in-menu #hud, body.in-menu .touch-layer { display: none; }
+.menu { position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; background: radial-gradient(ellipse at center, #15121c55, #000c); pointer-events: auto; }
+.menu.over-game { background: #000a; }
+.menu-card {
+  width: min(520px, 94vw); max-height: 94vh; overflow: auto; text-align: center;
+  background: rgba(12, 8, 20, .94); border: 3px solid #ffd23f; border-radius: 20px; padding: 22px 24px;
+  box-shadow: 0 0 0 8px rgba(255, 46, 136, .3);
+}
+.menu-card h1 { margin: 0; font-size: clamp(22px, 4.4vw, 38px); line-height: 1.05; color: #fff; letter-spacing: .02em; }
+.menu-card h1 span { display: block; color: #ff2e88; font-size: 1.35em; }
+.menu-card h2 { margin: 0 0 14px; color: #ffd23f; }
+.menu-sub { margin: 6px 0 14px; opacity: .7; font-size: 14px; }
+.menu button { font: inherit; font-weight: 900; color: #fff; background: #2a2140; border: 2px solid #ffffff2a; border-radius: 12px; padding: 10px 12px; cursor: pointer; }
+.menu button:hover { background: #3a2d5a; border-color: #ffd23f; }
+.menu .menu-big { width: 100%; font-size: 26px; padding: 14px; background: #ff2e88; border-color: #fff; margin: 4px 0 12px; }
+.menu button.danger { background: #c62f45; }
+.menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.menu-grid button:last-child:nth-child(odd) { grid-column: span 2; }
+.menu-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 8px 0; text-align: left; font-weight: 800; }
+.menu-row select { font: inherit; font-weight: 800; background: #2a2140; color: #fff; border: 2px solid #ffffff2a; border-radius: 10px; padding: 6px 8px; max-width: 60%; }
+.menu-row input[type=range] { flex: 1; accent-color: #ff2e88; }
+.menu-row input[type=checkbox] { width: 22px; height: 22px; accent-color: #ff2e88; }
+.menu-row output { min-width: 52px; text-align: right; color: #ffd23f; }
+.seg { display: flex; gap: 4px; }
+.seg button { padding: 6px 10px; font-size: 14px; }
+.seg button.on { background: #ffd23f; color: #111; border-color: #fff; }
+.menu-help { text-align: left; font-size: 14px; line-height: 1.45; }
+.menu-help b { color: #ffd23f; }
+.menu-card > button[data-act=back] { margin-top: 12px; width: 100%; }
+
+/* botão de pausa */
+.pause-btn {
+  position: absolute; left: 50%; top: 52px; transform: translateX(-50%); width: 40px; height: 34px; border-radius: 10px;
+  pointer-events: auto; font-size: 16px; background: #000a; color: #fff; border: 2px solid #ffffff44; cursor: pointer; z-index: 3;
+}
+
+/* ===================== Editor de HUD ===================== */
+.hud-custom { position: absolute !important; right: auto !important; bottom: auto !important; margin: 0 !important;
+  transform: translate(-50%, -50%) scale(var(--s, 1)) !important; transform-origin: center; }
+body.hud-editing #hud { z-index: 5; }
+.hud-editing [data-hud-id] { pointer-events: auto !important; outline: 2px dashed #ffd23f; outline-offset: 4px; cursor: move; touch-action: none; }
+.hud-editing [data-hud-id].he-sel { outline: 3px solid #3dd6ff; }
+.hud-editing .touch-move, .hud-editing .touch-look { pointer-events: none !important; }
+.hud-editing .touch-layer { z-index: 6; }
+.hud-editing .vitals, .hud-editing .loadout { display: flex !important; }
+.hud-editing .loadout { display: block !important; }
+.hud-editor { position: fixed; inset: 0; z-index: 7; pointer-events: none; }
+.he-top { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); background: #000c; padding: 6px 14px; border-radius: 10px; font-weight: 800; font-size: 13px; text-align: center; max-width: 92vw; }
+.he-bar { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); display: flex; gap: 10px; align-items: center;
+  background: rgba(12, 8, 20, .95); border: 2px solid #3dd6ff; border-radius: 14px; padding: 8px 12px; pointer-events: auto; }
+.he-label { font-weight: 900; min-width: 110px; }
+.he-size { width: min(220px, 30vw); accent-color: #3dd6ff; }
+.he-bar button { font: inherit; font-weight: 900; border: 0; border-radius: 10px; padding: 8px 12px; cursor: pointer; }
+.he-reset { background: #2a2140; color: #fff; }
+.he-done { background: #5dff9a; color: #111; }
+.hud-editor.bar-top .he-bar { bottom: auto; top: 10px; }
+.hud-editor.bar-top .he-top { display: none; }

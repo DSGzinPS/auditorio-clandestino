@@ -16,6 +16,8 @@ import { GROUP, playerGroup, ALL_PLAYERS_MASK } from '../physics/PhysicsWorld.js
 
 export const STAND_HEIGHT = 0.85; // centro do controller acima do chão
 const EYE_OFFSET = 0.75;           // olho acima do centro do controller
+const CROUCH_DROP = 0.42;          // quanto o corpo/olho desce agachado
+const TOP_SPHERE_Y = 0.35;         // esfera de cima do controller (em pé)
 const UP = new CANNON.Vec3(0, 1, 0);
 const V = (x, y, z) => new CANNON.Vec3(x, y, z);
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -46,6 +48,13 @@ export class Character {
     this.armor = 0;
     this.dead = false;
     this.flinch = new CANNON.Vec3();
+    this.crouching = false;     // pedido de agachar (segurando C / botão)
+    this.crouchT = 0;           // 0 = em pé … 1 = agachado (animação)
+    this.sprinting = false;
+    this.grounded = true;
+    this._ray = new CANNON.RaycastResult();
+    this._rf = new CANNON.Vec3();
+    this._rt = new CANNON.Vec3();
     this.autoRecover = true;
     this.yaw = 0;
     this.pitch = 0;
@@ -221,9 +230,11 @@ export class Character {
   poseParts() {
     const q = this._q.setFromAxisAngle(UP, this.yaw);
     const base = this.controller.position;
+    const drop = CROUCH_DROP * this.crouchT;
     for (const p of this.partList) {
       q.vmult(p.restPos, this._v);
-      p.body.position.set(base.x + this._v.x, base.y + this._v.y, base.z + this._v.z);
+      const dy = p.name.startsWith('leg') ? -drop * 0.15 : -drop; // agachado: corpo desce, pernas "dobram" pra dentro
+      p.body.position.set(base.x + this._v.x, base.y + this._v.y + dy, base.z + this._v.z);
       q.mult(p.restQuat, p.body.quaternion);
       p.body.velocity.copy(this.controller.velocity);
       p.body.angularVelocity.setZero();
@@ -282,6 +293,10 @@ export class Character {
   /** @param ground posição no CHÃO (y = altura do piso) */
   teleport(ground, yaw = this.yaw) {
     if (this.mode === 'ragdoll') this._leaveRagdoll();
+    this.crouchT = 0;
+    this.crouching = false;
+    this.controller.shapeOffsets[1].y = TOP_SPHERE_Y;
+    this.controller.updateBoundingRadius();
     this.controller.position.set(ground.x, ground.y + STAND_HEIGHT, ground.z);
     this.controller.velocity.setZero();
     this.flinch.setZero();
@@ -371,15 +386,50 @@ export class Character {
     this.yaw -= intent.lookX;
     this.pitch = clamp(this.pitch - intent.lookY, -1.45, 1.45);
 
+    // agachar (hitbox menor e olho mais baixo) · correr · pular
+    const ch = CONFIG.character;
+    this._setCrouch(!!intent.crouch, dt);
+    this.grounded = this._checkGround();
+    if (intent.jump && this.grounded && this.crouchT < 0.5) v.y = ch.jumpSpeed;
+
     let mx = intent.moveX, mz = intent.moveZ;
     const len = Math.hypot(mx, mz);
     if (len > 1) { mx /= len; mz /= len; }
+    this.sprinting = !!intent.sprint && mz > 0.2 && this.crouchT < 0.5;
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
-    const speed = CONFIG.character.moveSpeed;
+    const speed = ch.moveSpeed * (this.sprinting ? ch.sprintMultiplier : 1) * (1 - this.crouchT * (1 - ch.crouchMultiplier));
     // frente = (-sin, -cos) · direita = (cos, -sin)
     v.x = (-sin * mz + cos * mx) * speed + this.flinch.x;
     v.z = (-cos * mz - sin * mx) * speed + this.flinch.z;
     this.flinch.scale(Math.exp(-dt * 6), this.flinch); // o tranco some rápido
+  }
+
+  _setCrouch(want, dt) {
+    this.crouching = want;
+    const target = want ? 1 : 0;
+    const step = dt / 0.15;
+    this.crouchT += Math.max(-step, Math.min(step, target - this.crouchT));
+    // a esfera de cima do controller desce: hitbox menor (passa tiro por cima)
+    const off = this.controller.shapeOffsets[1];
+    const y = this.crouchT > 0.5 ? TOP_SPHERE_Y - CROUCH_DROP : TOP_SPHERE_Y;
+    if (off.y !== y) {
+      off.y = y;
+      this.controller.updateBoundingRadius();
+      this.controller.aabbNeedsUpdate = true;
+    }
+  }
+
+  _checkGround() {
+    const c = this.controller.position;
+    this._rf.set(c.x, c.y, c.z);
+    this._rt.set(c.x, c.y - STAND_HEIGHT - 0.12, c.z);
+    this._ray.reset();
+    return this.physics.world.raycastAny(this._rf, this._rt, { collisionFilterMask: GROUP.ENV, skipBackfaces: true }, this._ray);
+  }
+
+  /** Altura a partir da qual o acerto conta como cabeça. */
+  headY() {
+    return this.controller.position.y + 0.42 - CROUCH_DROP * this.crouchT;
   }
 
   /** Depois do passo físico: pose kinemática ou regras do ragdoll. */
@@ -417,7 +467,7 @@ export class Character {
   getEyePosition(target = new THREE.Vector3()) {
     if (this.mode === 'controlled') {
       const c = this.controller.position;
-      return target.set(c.x, c.y + EYE_OFFSET, c.z);
+      return target.set(c.x, c.y + EYE_OFFSET - CROUCH_DROP * this.crouchT, c.z);
     }
     const t = this.parts.torso.body;
     const top = t.quaternion.vmult(V(0, TORSO.height / 2 + 0.1, 0));

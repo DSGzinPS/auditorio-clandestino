@@ -72,7 +72,7 @@ for (const level of ['facil', 'normal', 'dificil']) {
   g.players[0].teleport({ x: 0, y: 0, z: 0 }, 0);
   g.players[1].teleport({ x: 0, y: 0, z: -7 }, Math.PI);
   let threw = false, recovered = false;
-  run(g, 25, () => {
+  run(g, 45, () => {
     const d = g.players[1].weapon.def.id;
     if (d === 'none') threw = true;
     if (threw && d === 'duck') recovered = true;

@@ -15,7 +15,12 @@ export class TouchControls {
     this.lookDY = 0;
     this.fire = false;
     this.melee = false;
+    this.jump = false;
+    this.crouchOn = false; // AGACHAR e CORRER são liga/desliga
+    this.sprintOn = false;
+    this.stickSprint = false; // joystick no talo também corre
     this.visible = false;
+    this.enabled = true;   // false durante o editor de HUD
 
     parent.insertAdjacentHTML('beforeend', `
       <div class="touch-layer hidden">
@@ -23,6 +28,9 @@ export class TouchControls {
         <div class="touch-look"></div>
         <div class="touch-btn touch-melee">SOCO</div>
         <div class="touch-btn touch-fire">ATIRAR</div>
+        <div class="touch-btn touch-jump">PULAR</div>
+        <div class="touch-btn touch-crouch">AGACHAR</div>
+        <div class="touch-btn touch-sprint">CORRER</div>
       </div>`);
     this.layer = parent.querySelector('.touch-layer');
     this.base = this.layer.querySelector('.stick-base');
@@ -32,6 +40,32 @@ export class TouchControls {
     this._drag(this.layer.querySelector('.touch-look'));
     this._button(this.layer.querySelector('.touch-fire'), 'fire', true);
     this._button(this.layer.querySelector('.touch-melee'), 'melee', false);
+    this._button(this.layer.querySelector('.touch-jump'), 'jump', false);
+    this._toggle(this.layer.querySelector('.touch-crouch'), 'crouchOn', 'sprintOn');
+    this._toggle(this.layer.querySelector('.touch-sprint'), 'sprintOn', 'crouchOn');
+  }
+
+  /** Elementos que o editor de HUD pode mover/redimensionar. */
+  editables() {
+    const q = (c) => this.layer.querySelector(c);
+    return [
+      ['fire', q('.touch-fire'), 'Atirar'], ['melee', q('.touch-melee'), 'Soco'], ['jump', q('.touch-jump'), 'Pular'],
+      ['crouch', q('.touch-crouch'), 'Agachar'], ['sprint', q('.touch-sprint'), 'Correr'],
+    ];
+  }
+
+  _toggle(el, key, other) {
+    el.addEventListener('pointerdown', () => {
+      if (!this.enabled) return;
+      this[key] = !this[key];
+      if (this[key]) this[other] = false;
+      this._syncToggles();
+    });
+  }
+
+  _syncToggles() {
+    this.layer.querySelector('.touch-crouch').classList.toggle('on', this.crouchOn);
+    this.layer.querySelector('.touch-sprint').classList.toggle('on', this.sprintOn);
   }
 
   setVisible(v) {
@@ -47,17 +81,24 @@ export class TouchControls {
     const r = {
       moveX: this.moveX, moveZ: this.moveZ, lookDX: this.lookDX, lookDY: this.lookDY,
       fire: this.fire || this.firePressed, melee: this.melee || this.meleePressed,
+      jump: this.jump || this.jumpPressed,
+      crouch: this.crouchOn,
+      sprint: this.sprintOn || this.stickSprint,
     };
     this.lookDX = 0;
     this.lookDY = 0;
     this.firePressed = false;
     this.meleePressed = false;
+    this.jumpPressed = false;
     return r;
   }
 
   _resetAll() {
     this.moveX = this.moveZ = this.lookDX = this.lookDY = 0;
-    this.fire = this.melee = false;
+    this.fire = this.melee = this.jump = false;
+    this.firePressed = this.meleePressed = this.jumpPressed = false;
+    this.crouchOn = this.sprintOn = this.stickSprint = false;
+    this._syncToggles();
     this.base.classList.remove('on');
   }
 
@@ -65,7 +106,7 @@ export class TouchControls {
   _stick(zone) {
     let id = null, ox = 0, oy = 0;
     zone.addEventListener('pointerdown', (e) => {
-      if (id !== null) return;
+      if (id !== null || !this.enabled) return;
       id = e.pointerId;
       zone.setPointerCapture(id);
       const r = zone.getBoundingClientRect();
@@ -82,12 +123,14 @@ export class TouchControls {
       if (len > STICK_RADIUS) { dx *= STICK_RADIUS / len; dy *= STICK_RADIUS / len; }
       this.moveX = dx / STICK_RADIUS;
       this.moveZ = -dy / STICK_RADIUS;
+      this.stickSprint = this.moveZ > 0.92; // empurrou pra frente até o fim = corre
       this.knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
     });
     const end = (e) => {
       if (e.pointerId !== id) return;
       id = null;
       this.moveX = this.moveZ = 0;
+      this.stickSprint = false;
       this.base.classList.remove('on');
     };
     zone.addEventListener('pointerup', end);
@@ -98,7 +141,7 @@ export class TouchControls {
   _drag(zone, onDown, onUp) {
     let id = null, lx = 0, ly = 0;
     zone.addEventListener('pointerdown', (e) => {
-      if (id !== null) return;
+      if (id !== null || !this.enabled) return;
       id = e.pointerId;
       zone.setPointerCapture(id);
       lx = e.clientX; ly = e.clientY;
@@ -125,7 +168,7 @@ export class TouchControls {
     if (aimWhileHeld) {
       this._drag(el, down, up);
     } else {
-      el.addEventListener('pointerdown', (e) => { el.setPointerCapture(e.pointerId); down(); });
+      el.addEventListener('pointerdown', (e) => { if (!this.enabled) return; el.setPointerCapture(e.pointerId); down(); });
       el.addEventListener('pointerup', up);
       el.addEventListener('pointercancel', up);
     }

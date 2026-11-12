@@ -68,6 +68,9 @@ export const CONFIG = {
 
   character: {
     moveSpeed: 7,
+    sprintMultiplier: 1.6,   // correr (Shift / botão CORRER / joystick no talo)
+    crouchMultiplier: 0.45,  // agachado anda mais devagar
+    jumpSpeed: 5.6,          // pulo ≈ 1,6 m
     mouseSensitivity: 0.0022,
     touchLookSensitivity: 0.0065, // celular: rad por pixel arrastado
     keyLookSpeed: 2.6,       // rad/s mirando pelo teclado (P2)
