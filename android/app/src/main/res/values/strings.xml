@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Auditório Clandestino</string>
+    <string name="title_activity_main">Auditório Clandestino</string>
+    <string name="package_name">com.davicabral.auditorioclandestino</string>
+    <string name="custom_url_scheme">com.davicabral.auditorioclandestino</string>
+</resources>

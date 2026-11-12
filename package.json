@@ -1,0 +1,33 @@
+{
+  "name": "programa-de-auditorio-clandestino",
+  "version": "0.1.0",
+  "description": "Greybox FPS + quiz com ragdoll ca\u00f3tico (Three.js + cannon-es)",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:standalone": "vite build --mode standalone",
+    "preview": "vite preview",
+    "test:physics": "node tests/physics-sim.mjs",
+    "test:bot": "node tests/bot-sim.mjs",
+    "test": "node tests/physics-sim.mjs && node tests/bot-sim.mjs && node tests/match-sim.mjs",
+    "test:match": "node tests/match-sim.mjs",
+    "android:sync": "npm run build && npx cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/cli": "^8.6.2",
+    "@capacitor/core": "^8.6.2",
+    "cannon-es": "^0.20.0",
+    "lil-gui": "^0.21.0",
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "vite": "^8.3.8",
+    "vite-plugin-singlefile": "^2.3.4"
+  },
+  "type": "module",
+  "private": true
+}

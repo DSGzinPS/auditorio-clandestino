@@ -1,0 +1,203 @@
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; height: 100%; overflow: hidden; background: #000; color: #fff;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; user-select: none;
+}
+#app, #app canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+#hud { position: fixed; inset: 0; pointer-events: none; }
+.hidden { display: none !important; }
+
+.divider { position: absolute; left: 50%; top: 0; bottom: 0; width: 4px; margin-left: -2px; background: #000; }
+.half { position: absolute; top: 0; bottom: 0; width: 50%; display: flex; align-items: center; justify-content: center; }
+.half-0 { left: 0; }
+.half-1 { left: 50%; }
+.single .half { width: 100%; }
+.single .divider { display: none; }
+.single .lock-hint { left: 50%; }
+.half-1 .tag { left: auto; right: 16px; }
+.tag { position: absolute; left: 16px; top: 14px; font-weight: 900; letter-spacing: .08em; color: var(--accent); text-shadow: 0 2px 0 #000; }
+
+/* mira */
+.crosshair { position: absolute; left: 50%; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px; display: none; }
+.crosshair::before, .crosshair::after { content: ""; position: absolute; background: #fff; box-shadow: 0 0 0 1px #000a; }
+.crosshair::before { left: 9px; top: 0; width: 2px; height: 20px; }
+.crosshair::after { top: 9px; left: 0; height: 2px; width: 20px; }
+.show-crosshair .crosshair { display: block; }
+
+/* quiz */
+.quiz {
+  pointer-events: auto; text-align: center; min-width: min(440px, 88%);
+  background: rgba(12, 8, 20, .9); border: 3px solid #ffd23f; border-radius: 18px;
+  padding: 20px 26px; box-shadow: 0 0 0 6px rgba(255, 46, 136, .35);
+}
+.quiz-timer { color: #ffd23f; font-weight: 800; }
+.quiz-question { font-size: clamp(28px, 4vw, 56px); font-weight: 900; margin: 6px 0 18px; }
+.quiz-options { display: flex; gap: 14px; }
+.quiz-options button {
+  flex: 1; display: flex; gap: 10px; align-items: center; justify-content: center;
+  font: inherit; font-size: clamp(22px, 2.6vw, 38px); font-weight: 900; color: #fff;
+  padding: 14px 10px; border-radius: 12px; border: 3px solid #ffffff22; background: #2a2140; cursor: pointer;
+}
+.quiz-options button:hover:not(:disabled) { background: #3a2d5a; }
+.quiz-options button:disabled { cursor: default; }
+.quiz-options button.picked.right { background: #1f9d55; }
+.quiz-options button.picked.wrong { background: #c62f45; }
+.quiz-options button.correct { border-color: #ffd23f; box-shadow: 0 0 18px #ffd23f88; }
+kbd { font: 800 .5em system-ui, sans-serif; background: #fff; color: #111; border-radius: 6px; padding: 3px 8px; }
+.quiz-feedback { min-height: 1.4em; margin-top: 12px; font-weight: 800; }
+.quiz-opponents { margin-top: 6px; font-size: 15px; font-weight: 800; opacity: .9; }
+.op-status { color: #cfc8e6; }
+.op-status.right { color: #5dff9a; }
+.op-status.wrong { color: #ff4d6d; }
+
+/* avisos grandes */
+.flash {
+  position: absolute; top: 20%; left: 0; right: 0; text-align: center; opacity: 0;
+  font-size: clamp(26px, 4vw, 60px); font-weight: 900; text-shadow: 0 4px 0 #000;
+}
+.flash.show { animation: flash 1.4s ease-out forwards; }
+.flash.good { color: #5dff9a; }
+.flash.bad { color: #ff4d6d; }
+.flash.big { color: #ffd23f; font-size: clamp(44px, 7vw, 110px); }
+@keyframes flash {
+  0% { opacity: 0; transform: scale(.6) rotate(-4deg); }
+  12% { opacity: 1; transform: scale(1.12) rotate(2deg); }
+  70% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: translateY(-20px); }
+}
+
+/* barra superior */
+.topbar { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 14px; align-items: center; z-index: 2; }
+.phase { background: #ff2e88; padding: 6px 16px; border-radius: 999px; font-weight: 900; letter-spacing: .06em; white-space: nowrap; }
+
+.lock-hint { position: absolute; left: 25%; transform: translateX(-50%); bottom: 64px; background: #000c; padding: 8px 14px; border-radius: 8px; font-size: 14px; }
+.help { position: absolute; bottom: 6px; left: 0; right: 0; text-align: center; font-size: 12px; opacity: .65; text-shadow: 0 1px 0 #000; }
+
+/* ===================== Fase 2: placar, loja, vida, resumos ===================== */
+.topbar { gap: 10px; }
+.team-score { background: #000b; padding: 5px 12px; border-radius: 10px; font-weight: 900; font-size: 15px; white-space: nowrap; }
+.team-score b { font-size: 22px; margin-left: 6px; }
+.quiz-head { display: flex; justify-content: space-between; font-weight: 800; color: #ffd23f; font-size: 14px; letter-spacing: .05em; }
+.quiz-reward { margin-top: 10px; font-size: 13px; opacity: .75; }
+
+.killfeed { position: absolute; top: 56px; right: 14px; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; font-size: 13px; font-weight: 800; z-index: 3; }
+.killfeed div { background: #000a; padding: 4px 10px; border-radius: 6px; }
+.killfeed em { font-style: normal; opacity: .75; font-weight: 600; }
+
+.vitals { position: absolute; left: 18px; bottom: 34px; width: min(260px, 40%); display: flex; flex-direction: column; gap: 6px; }
+.bar { position: relative; height: 22px; background: #000a; border-radius: 6px; overflow: hidden; }
+.bar i { position: absolute; inset: 0 auto 0 0; transition: width .15s; }
+.bar.hp i { background: linear-gradient(90deg, #ff4d6d, #ff8a3d); }
+.bar.armor { height: 14px; }
+.bar.armor i { background: #3dd6ff; }
+.bar span { position: relative; padding-left: 8px; font-size: 13px; font-weight: 900; line-height: 22px; text-shadow: 0 1px 0 #000; }
+.bar.armor span { line-height: 14px; font-size: 11px; }
+.loadout { position: absolute; right: 18px; bottom: 34px; text-align: right; text-shadow: 0 2px 0 #000; }
+.weapon-name { font-weight: 900; font-size: 18px; color: var(--accent); }
+.money { font-weight: 900; font-size: 26px; color: #5dff9a; }
+
+.hitmark { position: absolute; left: 50%; top: 50%; margin: 18px 0 0 18px; font-weight: 900; font-size: 18px; color: #fff; opacity: 0; text-shadow: 0 2px 0 #000; white-space: nowrap; }
+.hitmark.head { color: #ffd23f; font-size: 22px; }
+.hitmark.show { animation: hit .7s ease-out forwards; }
+@keyframes hit { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(-26px); } }
+
+.shop {
+  pointer-events: auto; width: min(560px, 92%); background: rgba(12, 8, 20, .92);
+  border: 3px solid #3dd6ff; border-radius: 18px; padding: 16px 18px;
+}
+.shop-head { display: flex; justify-content: space-between; align-items: baseline; font-weight: 900; margin-bottom: 10px; }
+.shop-head b { font-size: 22px; color: #3dd6ff; letter-spacing: .1em; }
+.shop-timer { color: #ffd23f; font-size: 20px; }
+.shop-money { color: #5dff9a; font-size: 22px; }
+.shop-restricted { background: #c62f45; padding: 8px 10px; border-radius: 8px; font-weight: 800; margin-bottom: 10px; font-size: 14px; }
+.shop-items { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.shop-items button {
+  display: grid; grid-template-columns: auto 1fr auto; grid-template-rows: auto auto; column-gap: 8px; text-align: left;
+  font: inherit; color: #fff; background: #2a2140; border: 2px solid #ffffff22; border-radius: 10px; padding: 8px 10px; cursor: pointer;
+}
+.shop-items button:hover:not(:disabled) { background: #3a2d5a; border-color: #3dd6ff; }
+.shop-items button:disabled { opacity: .4; cursor: default; }
+.shop-items button.owned { opacity: .85; border-color: #5dff9a; }
+.shop-items kbd { grid-row: span 2; align-self: center; justify-self: start; font-size: 12px; }
+.it-name { font-weight: 900; font-size: 15px; }
+.it-price { font-weight: 900; color: #5dff9a; }
+.it-stats { grid-column: 2 / 4; font-size: 12px; opacity: .75; }
+.shop-feedback { min-height: 1.3em; margin: 8px 0 4px; font-weight: 800; font-size: 14px; }
+.shop-feedback.right, .op-status.right { color: #5dff9a; }
+.shop-feedback.wrong { color: #ff4d6d; }
+.shop-ready { pointer-events: auto; width: 100%; font: inherit; font-weight: 900; font-size: 18px; padding: 10px; border-radius: 10px; border: 0; background: #ffd23f; color: #111; cursor: pointer; }
+.shop-ready kbd { background: #111; color: #fff; }
+.shop-ready.done { background: #5dff9a; }
+
+.banner {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 4; text-align: center;
+  background: rgba(12, 8, 20, .94); border: 3px solid #ffd23f; border-radius: 20px; padding: 22px 30px; min-width: min(560px, 92%);
+  box-shadow: 0 0 0 8px rgba(255, 46, 136, .3);
+}
+.banner h2 { margin: 0 0 8px; font-size: clamp(24px, 3.4vw, 42px); color: #ffd23f; }
+.sum-score { font-size: 20px; margin-bottom: 14px; }
+.sum-grid { display: flex; gap: 18px; justify-content: center; text-align: left; }
+.sum-player h4 { margin: 0 0 6px; }
+.sum-player small { opacity: .75; }
+.sum-total { margin-top: 8px; font-weight: 900; color: #5dff9a; }
+.banner table { margin: 8px auto 0; border-collapse: collapse; font-size: 16px; }
+.banner th, .banner td { padding: 6px 12px; }
+.banner th { font-size: 12px; opacity: .7; text-transform: uppercase; }
+.banner td { font-weight: 800; border-top: 1px solid #ffffff22; }
+
+/* ===================== Celular (toque) ===================== */
+html, body { touch-action: none; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+.touch-layer { position: fixed; inset: 0; z-index: 1; }
+.touch-move { position: absolute; left: 0; top: 0; bottom: 0; width: 42%; }
+.touch-look { position: absolute; right: 0; top: 0; bottom: 0; width: 58%; }
+.stick-base {
+  position: absolute; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%;
+  border: 3px solid #ffffff55; background: #ffffff14; display: none; pointer-events: none;
+}
+.stick-base.on { display: block; }
+.stick-knob { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; border-radius: 50%; background: #ffffffaa; transform: translate(-50%, -50%); }
+.touch-btn {
+  position: absolute; display: flex; align-items: center; justify-content: center; border-radius: 50%;
+  font-weight: 900; color: #fff; user-select: none; text-shadow: 0 1px 0 #000; border: 3px solid #ffffff88;
+}
+.touch-fire { right: 4%; bottom: 14%; width: 96px; height: 96px; background: #ff2e88aa; font-size: 15px; }
+.touch-melee { right: calc(4% + 108px); bottom: 8%; width: 66px; height: 66px; background: #3dd6ffaa; font-size: 13px; }
+.touch-btn.on { filter: brightness(1.4); transform: scale(.94); }
+.touch .vitals { bottom: auto; top: 42px; width: 180px; }
+.touch .loadout { bottom: auto; top: 42px; right: auto; left: 214px; text-align: left; }
+.touch .weapon-name { font-size: 14px; }
+.touch .money { font-size: 20px; }
+.touch .killfeed { top: 100px; }
+.touch .help { display: none; }
+
+/* telas baixas (celular deitado): quiz, loja e resumos compactos */
+@media (max-height: 520px) {
+  .topbar { top: 4px; }
+  .phase { padding: 4px 12px; font-size: 13px; }
+  .team-score { font-size: 12px; padding: 3px 8px; }
+  .team-score b { font-size: 16px; }
+  .tag { display: none; }
+  .quiz { padding: 10px 16px; }
+  .quiz-question { font-size: 30px; margin: 2px 0 8px; }
+  .quiz-options button { font-size: 22px; padding: 8px; }
+  .quiz-reward, .quiz-feedback, .quiz-opponents { margin-top: 4px; font-size: 12px; }
+  .shop { padding: 8px 12px; width: min(640px, 96%); }
+  .shop-head { margin-bottom: 4px; }
+  .shop-head b, .shop-money, .shop-timer { font-size: 16px; }
+  .shop-restricted { padding: 4px 8px; margin-bottom: 4px; font-size: 12px; }
+  .shop-items { grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
+  .shop-items button { padding: 5px 7px; }
+  .it-name { font-size: 12px; }
+  .it-stats { font-size: 10px; }
+  .it-price { font-size: 13px; }
+  .shop-feedback { margin: 3px 0; font-size: 12px; min-height: 1.1em; }
+  .shop-ready { padding: 6px; font-size: 15px; }
+  .banner { padding: 10px 16px; }
+  .banner h2 { font-size: 22px; }
+  .sum-score { font-size: 15px; margin-bottom: 6px; }
+  .banner table { font-size: 13px; }
+  .flash { font-size: 26px; top: 16%; }
+  .flash.big { font-size: 40px; }
+}
+.touch .lil-gui.autoPlace { top: auto !important; bottom: 4px; right: 50% !important; transform: translateX(50%); max-height: 60vh; }
+.touch .half:has(.shop:not(.hidden)) .vitals, .touch .half:has(.shop:not(.hidden)) .loadout { display: none; }

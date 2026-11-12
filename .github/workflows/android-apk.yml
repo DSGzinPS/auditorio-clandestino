@@ -1,0 +1,66 @@
+# Gera o APK a cada push na main (ou manualmente em Actions → "Android APK" → Run workflow).
+# O APK sai em Releases (fácil de baixar no celular) e também como artifact.
+name: Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Dependências
+        run: npm ci
+
+      - name: Testes (física, bot, partida inteira)
+        run: npm test
+        continue-on-error: true # não trava o APK se um teste aleatório oscilar
+
+      - name: Build do jogo
+        run: npm run build
+
+      - name: Copia o jogo para o projeto Android
+        run: npx cap sync android
+
+      - name: Compila o APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Renomeia
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk auditorio-clandestino.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: auditorio-clandestino-apk
+          path: auditorio-clandestino.apk
+
+      - name: Publica em Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="apk-${{ github.run_number }}"
+          gh release create "$TAG" auditorio-clandestino.apk \
+            --title "APK #${{ github.run_number }}" \
+            --notes "Build automático do commit ${GITHUB_SHA::7}. Baixe o auditorio-clandestino.apk no celular e instale." \
+            --latest
