@@ -4,7 +4,15 @@ FPS 1v1 com Three.js + cannon-es. Quiz de matemática → erra e vai pro teto �
 
 Por padrão você joga em **tela cheia contra um bot offline** (o P2, "FONE"), que se comporta como um jogador em outro PC — ou **em rede** com outro aparelho (PC ↔ celular, celular ↔ celular). Para o 1v1 local de tela dividida: `CONFIG.game.mode = 'splitscreen'` em `src/config.js`.
 
-## Rodar
+## Baixar a alpha (sem instalar nada)
+
+- **Jogar no navegador:** https://dsgzinps.github.io/auditorio-clandestino/
+- **PC:** em [Releases](https://github.com/DSGzinPS/auditorio-clandestino/releases/latest), baixe `auditorio-clandestino-jogavel.html` e abra com dois cliques (Chrome/Edge).
+- **Celular:** na mesma página, baixe `auditorio-clandestino.apk` e instale.
+
+Tudo é gerado sozinho a cada atualização na `main`.
+
+## Rodar (para programar)
 
 ```bash
 npm install

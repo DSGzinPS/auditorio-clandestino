@@ -1,5 +1,6 @@
-# Gera o APK a cada push na main (ou manualmente em Actions → "Android APK" → Run workflow).
-# O APK sai em Releases (fácil de baixar no celular) e também como artifact.
+# A cada push na main (ou manualmente em Actions → "Android APK" → Run workflow):
+#  • gera o APK e o HTML jogável (arquivo único) e publica os dois em Releases;
+#  • publica o jogo no GitHub Pages (jogar pelo navegador com um link).
 name: Android APK
 
 on:
@@ -42,6 +43,15 @@ jobs:
       - name: Build do jogo
         run: npm run build
 
+      - name: HTML jogável (arquivo único, abre com dois cliques)
+        run: |
+          npm run build:standalone
+          cp dist-standalone/index.html auditorio-clandestino-jogavel.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
       - name: Copia o jogo para o projeto Android
         run: npx cap sync android
 
@@ -64,7 +74,23 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="apk-${{ github.run_number }}"
-          gh release create "$TAG" auditorio-clandestino.apk \
-            --title "APK #${{ github.run_number }}" \
-            --notes "Build automático do commit ${GITHUB_SHA::7}. Baixe o auditorio-clandestino.apk no celular e instale." \
+          gh release create "$TAG" auditorio-clandestino.apk auditorio-clandestino-jogavel.html \
+            --title "Alpha #${{ github.run_number }}" \
+            --notes "Build automático do commit ${GITHUB_SHA::7}. Celular: baixe o auditorio-clandestino.apk e instale. PC: baixe o auditorio-clandestino-jogavel.html e abra com dois cliques (Chrome/Edge)." \
             --latest
+
+  # Jogar no navegador: https://dsgzinps.github.io/auditorio-clandestino/
+  # (precisa estar ligado uma vez em Settings → Pages → Source: GitHub Actions)
+  pages:
+    needs: apk
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
