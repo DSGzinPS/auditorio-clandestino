@@ -65,7 +65,7 @@ export class Match {
     const item = shopItem(itemId);
     const p = this.players[index];
     if (!item || item.price == null) return { ok: false, reason: 'Item inexistente' };
-    if (!this.canShop(index)) return { ok: false, reason: 'Perdeu o quiz: sem compras nesta etapa' };
+    if (!this.canShop(index)) return { ok: false, reason: 'Castigado: elimine alguém para liberar a loja' };
     if (this.money[index] < item.price) return { ok: false, reason: 'Dinheiro insuficiente' };
     if (item.kind === 'weapon' && p.weapon.def.id === item.id) return { ok: false, reason: 'Já está com essa arma' };
     if (item.kind === 'armor' && p.armor >= Math.min(item.points, CONFIG.player.maxArmor)) {
@@ -94,6 +94,7 @@ export class Match {
       if (!survived || p.weapon.def.type === 'none') p.weapon.equip(this.defaultWeaponFor(i));
       if (this.restrictions[i] === 'duck' && p.weapon.def.id !== 'duck') p.weapon.equip('duck');
       p.weapon.thrownDuck = null;
+      p.weapon.refill(); // sobreviveu com a arma: pente e reserva cheios de novo
     });
   }
 

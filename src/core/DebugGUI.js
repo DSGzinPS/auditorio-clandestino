@@ -29,9 +29,10 @@ export function createDebugGUI(game) {
   p.add(CONFIG.character, 'moveSpeed', 1, 20, 0.5).name('Velocidade');
   p.add(CONFIG.character, 'recoverTime', 0.5, 8, 0.1).name('Tempo p/ levantar');
   p.add(CONFIG.character, 'ragdollCamera', ['chase', 'head']).name('Câmera no ragdoll');
-  p.add(CONFIG.weapon, 'projectileSpeed', 5, 120, 1).name('Vel. projétil');
-  p.add(CONFIG.weapon, 'projectileRadius', 0.05, 0.6, 0.01).name('Raio projétil');
-  p.add(CONFIG.weapon, 'fireCooldown', 0.02, 1.5, 0.01).name('Cadência');
+  p.add(CONFIG.weapon, 'damageMult', 0.2, 3, 0.05).name('Dano das armas ×');
+  p.add(CONFIG.weapon, 'recoilMult', 0, 3, 0.05).name('Recuo ×');
+  p.add(CONFIG.weapon, 'spreadMult', 0, 3, 0.05).name('Dispersão ×');
+  p.add(CONFIG.player, 'armorAbsorb', 0, 1, 0.05).name('Colete absorve');
 
   if (game.mode === 'vsBot') {
     const b = gui.addFolder('Bot');

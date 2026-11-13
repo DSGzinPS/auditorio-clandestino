@@ -57,6 +57,8 @@ export class BasketballState extends State {
     const own = thrower && thrower.team !== team;
     if (thrower && !own) m.addMoney(thrower.index, CONFIG.economy.basketPoints, 'Cesta no basquete');
     g.hud.flash(null, own ? `CESTA CONTRA! (${thrower.name})` : `CESTA DE ${thrower?.name ?? m.teamName(team)}! +$${CONFIG.economy.basketPoints}`, 'big');
+    g.sfx('swish', hoop.center);
+    g.sfx(own ? 'laugh' : 'cheer', null, { amount: 1 });
     if (this.points[team] >= this.need) this._finish();
     else this._kickoffLater = 2.2;
   }

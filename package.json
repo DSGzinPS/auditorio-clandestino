@@ -1,7 +1,7 @@
 {
   "name": "programa-de-auditorio-clandestino",
   "version": "0.1.0",
-  "description": "Greybox FPS + quiz com ragdoll ca\u00f3tico (Three.js + cannon-es)",
+  "description": "Greybox FPS + quiz com ragdoll caótico (Three.js + cannon-es)",
   "directories": {
     "test": "tests"
   },
@@ -12,9 +12,11 @@
     "preview": "vite preview",
     "test:physics": "node tests/physics-sim.mjs",
     "test:bot": "node tests/bot-sim.mjs",
-    "test": "node tests/physics-sim.mjs && node tests/bot-sim.mjs && node tests/match-sim.mjs",
+    "test": "node tests/physics-sim.mjs && node tests/bot-sim.mjs && node tests/ballistics-sim.mjs && node tests/match-sim.mjs",
     "test:match": "node tests/match-sim.mjs",
-    "android:sync": "npm run build && npx cap sync android"
+    "android:sync": "npm run build && npx cap sync android",
+    "lan-server": "node scripts/lan-server.mjs",
+    "dev:lan": "vite --host"
   },
   "dependencies": {
     "@capacitor/android": "^8.6.2",
@@ -22,9 +24,12 @@
     "@capacitor/core": "^8.6.2",
     "cannon-es": "^0.20.0",
     "lil-gui": "^0.21.0",
+    "peerjs": "^1.5.5",
     "three": "^0.187.0"
   },
   "devDependencies": {
+    "express": "^4.22.3",
+    "peer": "^1.0.2",
     "vite": "^8.3.8",
     "vite-plugin-singlefile": "^2.3.4"
   },

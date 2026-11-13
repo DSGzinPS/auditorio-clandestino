@@ -11,6 +11,12 @@ export const blankIntent = () => ({
   lookY: 0,   // radianos neste frame (+ = olha p/ baixo)
   fire: false,
   melee: false,
+  ads: false,    // mirando (zoom)
+  reload: false, // apertou recarregar neste frame
+  tab: 0,        // loja: -1/+1 troca de aba
+  buyId: null,   // loja: compra direta por id (clique, bot, rede)
+  rematch: false,
+  leave: false,
   jump: false,   // apertou pular neste frame
   sprint: false, // segurando correr
   crouch: false, // agachado
@@ -24,11 +30,14 @@ const BUY_KEYS = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6'];
 export const P1_BINDINGS = {
   forward: ['KeyW'], back: ['KeyS'], left: ['KeyA'], right: ['KeyD'],
   fire: ['KeyF'], // além do clique esquerdo
-  melee: ['KeyV'], // além do clique direito
+  melee: ['KeyV', 'KeyQ'],
+  ads: ['KeyZ'],   // além do clique direito
+  reload: ['KeyR'],
+  tabPrev: ['KeyQ'], tabNext: ['KeyE', 'Tab'],
   jump: ['Space'], sprint: ['ShiftLeft'], crouch: ['KeyC', 'ControlRight'],
   answerA: ['Digit1'], answerB: ['Digit2'], answerC: ['Digit3'],
   buy: BUY_KEYS,
-  ready: ['Enter', 'KeyR'],
+  ready: ['Enter'],
   hints: ['1', '2', '3'],
 };
 
@@ -39,6 +48,7 @@ export const P2_BINDINGS = {
   fire: ['Enter', 'NumpadEnter', 'Numpad0'],
   melee: ['ShiftRight', 'NumpadDecimal'],
   jump: ['Numpad7'], sprint: ['Numpad9'], crouch: ['NumpadMultiply'],
+  ads: ['NumpadDivide'], reload: ['NumpadSubtract'], tabPrev: [], tabNext: [],
   answerA: ['Digit9', 'Numpad1'], answerB: ['Digit0', 'Numpad2'], answerC: ['Digit8', 'Numpad3'],
   buy: [], // P2 compra clicando
   ready: ['NumpadAdd'],
@@ -64,7 +74,10 @@ export class KeyboardMouseScheme {
     it.lookX = m.dx * CONFIG.character.mouseSensitivity;
     it.lookY = m.dy * CONFIG.character.mouseSensitivity;
     it.fire = (i.locked && i.mouseButtons.has(0)) || i.anyDown(b.fire);
-    it.melee = (i.locked && i.mouseButtons.has(2)) || i.anyDown(b.melee);
+    it.melee = i.anyDown(b.melee) || (i.locked && i.mouseButtons.has(1));
+    it.ads = (i.locked && i.mouseButtons.has(2)) || i.anyDown(b.ads);
+    it.reload = i.anyPressed(b.reload);
+    it.tab = (i.anyPressed(b.tabNext) ? 1 : 0) - (i.anyPressed(b.tabPrev) ? 1 : 0);
     it.jump = i.anyPressed(b.jump);
     it.sprint = i.anyDown(b.sprint);
     it.crouch = i.anyDown(b.crouch);
@@ -85,6 +98,8 @@ export class KeyboardMouseScheme {
       it.jump ||= t.jump;
       it.sprint ||= t.sprint;
       it.crouch ||= t.crouch;
+      it.ads ||= t.ads;
+      it.reload ||= t.reload;
     }
     return it;
   }
@@ -108,6 +123,8 @@ export class KeyboardGamepadScheme {
     it.lookY = axis(i, b.lookDown, b.lookUp) * ks;
     it.fire = i.anyDown(b.fire);
     it.melee = i.anyDown(b.melee);
+    it.ads = i.anyDown(b.ads);
+    it.reload = i.anyPressed(b.reload);
     it.jump = i.anyPressed(b.jump);
     it.sprint = i.anyDown(b.sprint);
     it.crouch = i.anyDown(b.crouch);
@@ -127,6 +144,10 @@ export class KeyboardGamepadScheme {
       const btn = (n) => !!pad.buttons[n]?.pressed;
       it.fire ||= btn(7);  // RT
       it.melee ||= btn(5); // RB
+      it.ads ||= btn(6);   // LT
+      const r = btn(2);
+      if (r && !this.prevR) it.reload = true; // X recarrega (fora do quiz)
+      this.prevR = r;
       it.ready ||= btn(9); // Start
       const j = btn(0);
       if (j && !this.prevJump) it.jump = true; // A

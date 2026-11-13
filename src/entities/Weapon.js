@@ -1,7 +1,11 @@
-// Arma equipada (dados do catálogo) + soco, que todo mundo sempre tem.
+// Arma equipada + soco (que todo mundo sempre tem).
+// Balística de FPS: pente/reserva/recarga, semi × automática, aceleração da minigun,
+// dispersão (parado, andando, no ar, agachado, mirando) que abre a cada tiro (bloom),
+// recuo na mira e zoom (ADS). O tiro em si fica em systems/Ballistics.js.
 
 import * as THREE from 'three';
-import { WEAPONS, MELEE } from '../data/catalog.js';
+import { CONFIG } from '../config.js';
+import { WEAPONS, MELEE, cooldownOf } from '../data/catalog.js';
 
 const _tmp = new THREE.Vector3();
 const _side = new THREE.Vector3();
@@ -11,57 +15,159 @@ export class Weapon {
   constructor(owner, projectiles) {
     this.owner = owner;
     this.projectiles = projectiles;
+    this.ballistics = null; // injetado pelo Game
     this.def = WEAPONS.slingshot;
+    this.ammo = 0;
+    this.reserve = 0;
+    this.reloading = 0;     // segundos restantes de recarga
     this.cooldown = 0;
     this.meleeCooldown = 0;
-    this.thrownDuck = null; // projétil do patinho no chão (para pegar de volta)
-    this.onFire = null;     // recuo do viewmodel
-    this.onMelee = null;    // animação de soco
-    this.onChange = null;   // troca de arma (viewmodel/HUD)
+    this.spin = 0;          // minigun: 0 parada … 1 girando
+    this.bloom = 0;
+    this.ads = false;       // mirando
+    this.triggerPrev = false;
+    this.thrownDuck = null;
+    // ganchos (câmera, sons, rede)
+    this.onFire = null;
+    this.onMelee = null;
+    this.onChange = null;
+    this.onReload = null;
+    this.onEmpty = null;
+    this.sfx = null; // (nome, opções) → Game/AudioSystem
     this._origin = new THREE.Vector3();
     this._dir = new THREE.Vector3();
+    this.equip('slingshot');
   }
 
   equip(id) {
     this.def = WEAPONS[id] ?? WEAPONS.none;
+    this.ammo = this.def.mag ?? 0;
+    this.reserve = this.def.reserve ?? 0;
+    this.reloading = 0;
     this.cooldown = 0.25;
+    this.spin = 0;
+    this.bloom = 0;
+    this.ads = false;
     this.owner.setWeaponLook(this.def);
     this.onChange?.(this.def);
   }
 
+  /** Começo de round: munição cheia (pente + reserva). */
+  refill() {
+    this.ammo = this.def.mag ?? 0;
+    this.reserve = this.def.reserve ?? 0;
+    this.reloading = 0;
+  }
+
+  get reloadProgress() {
+    return this.reloading > 0 ? 1 - this.reloading / (this.def.reload || 1) : 0;
+  }
+
   update(dt) {
-    this.cooldown = Math.max(0, this.cooldown - dt);
+    // deixa "sobrar" um pouco abaixo de zero: a cadência fica exata mesmo a 30/60 fps
+    this.cooldown = Math.max(-1 / 30, this.cooldown - dt);
+    this.pressBuffer = Math.max(0, (this.pressBuffer ?? 0) - dt);
     this.meleeCooldown = Math.max(0, this.meleeCooldown - dt);
+    this.bloom = Math.max(0, this.bloom - (this.def.bloomRecover ?? 0.3) * dt);
+    if (this.reloading > 0) {
+      this.reloading -= dt;
+      if (this.reloading <= 0) {
+        this.reloading = 0;
+        const take = Math.min((this.def.mag ?? 0) - this.ammo, this.reserve);
+        this.ammo += take;
+        this.reserve -= take;
+      }
+    }
+    if (this.def.spinUp && !this._spinHeld) this.spin = Math.max(0, this.spin - dt / this.def.spinUp);
+    this._spinHeld = false;
+    if (this.owner.mode !== 'controlled' || this.owner.dead) this.ads = false;
   }
 
   _canAct() {
     return this.owner.mode === 'controlled' && !this.owner.frozen && !this.owner.dead;
   }
 
+  /**
+   * Chamado todo frame no combate com a intenção do jogador.
+   * Cuida de semi × automática, recarga, mira e aceleração da minigun.
+   */
+  trigger(intent, dt = 1 / 60) {
+    const held = !!intent.fire;
+    const pressed = held && !this.triggerPrev;
+    this.triggerPrev = held;
+    this.ads = !!intent.ads && this._canAct() && this.reloading <= 0 && this.def.type !== 'none' && this.def.type !== 'throw';
+    if (intent.reload) this.startReload();
+    if (this.def.spinUp && held && this._canAct()) {
+      this._spinHeld = true;
+      this.spin = Math.min(1, this.spin + dt / this.def.spinUp);
+    }
+    if (this.def.auto) return held ? this.tryFire() : false;
+    // semi: um clique um pouco antes da arma ficar pronta não se perde
+    if (pressed) this.pressBuffer = 0.18;
+    if (this.pressBuffer > 0 && this.tryFire()) { this.pressBuffer = 0; return true; }
+    return false;
+  }
+
+  startReload() {
+    const d = this.def;
+    if (this.reloading > 0 || !d.mag || this.ammo >= d.mag || this.reserve <= 0 || d.type === 'throw') return false;
+    this.reloading = d.reload;
+    this.ads = false;
+    this.onReload?.(d);
+    this.sfx?.('reload');
+    return true;
+  }
+
+  /** Dispersão atual (rad). */
+  currentSpread() {
+    const d = this.def;
+    const o = this.owner;
+    let s = (this.ads ? d.adsSpread ?? d.spread : d.spread) ?? 0;
+    const v = o.controller.velocity;
+    const speed = Math.hypot(v.x, v.z);
+    s += (d.moveSpread ?? 0) * Math.min(1, speed / CONFIG.character.moveSpeed);
+    if (!o.grounded) s += 0.04;
+    s += this.bloom;
+    if (o.crouchT > 0.5) s *= 0.75;
+    return s * (CONFIG.weapon.spreadMult ?? 1);
+  }
+
+  /** Um disparo (respeita cadência, munição e recarga). */
   tryFire() {
     const d = this.def;
-    if (d.type === 'none' || this.cooldown > 0 || !this._canAct()) return false;
-    this.cooldown = d.cooldown;
+    if (d.type === 'none' || this.cooldown > 0 || this.reloading > 0 || !this._canAct()) return false;
+    if (d.spinUp && this.spin < 1) return false;
+    if (d.mag && this.ammo <= 0) {
+      this.onEmpty?.(d);
+      this.sfx?.('empty');
+      this.startReload();
+      this.cooldown = 0.25;
+      return false;
+    }
+    if (d.mag) this.ammo--;
+    this.cooldown = Math.min(0, this.cooldown) + cooldownOf(d);
 
     const origin = this.owner.getEyePosition(this._origin);
     const aim = this.owner.getAimDirection(this._dir);
-    origin.addScaledVector(aim, 0.75);
+    const spread = this.currentSpread();
 
-    if (d.type === 'throw') {
-      const lob = _tmp.copy(aim).add(_up.set(0, 0.12, 0)).normalize(); // arremesso levemente pra cima
+    if (d.type === 'hitscan') {
+      this.ballistics?.fireHitscan(this.owner, d, spread);
+    } else if (d.type === 'throw') {
+      origin.addScaledVector(aim, 0.75);
+      const lob = _tmp.copy(aim).add(_up.set(0, 0.12, 0)).normalize();
       this.thrownDuck = this.projectiles.spawn(this.owner, origin, lob, d, { persistent: true });
-      this.equip('none'); // jogou, ficou sem nada (até pegar de volta)
+      this.equip('none');
     } else {
-      // base ortonormal para espalhar os chumbinhos num cone
-      _side.crossVectors(aim, _up.set(0, 1, 0)).normalize();
-      _up.crossVectors(_side, aim).normalize();
-      for (let i = 0; i < (d.pellets ?? 1); i++) {
-        const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * (d.spread ?? 0);
-        const dir = _tmp.copy(aim).addScaledVector(_side, Math.cos(a) * r).addScaledVector(_up, Math.sin(a) * r).normalize();
-        this.projectiles.spawn(this.owner, origin, dir, d);
-      }
+      origin.addScaledVector(aim, 0.75);
+      this.projectiles.spawn(this.owner, origin, spreadDir(aim, spread, new THREE.Vector3()), d);
     }
+
+    this.bloom = Math.min(d.bloomMax ?? 0, this.bloom + (d.bloom ?? 0));
+    if (d.recoil) this.owner.applyRecoil(d.recoil[0] * (this.ads ? 0.75 : 1), d.recoil[1]);
     this.onFire?.(d);
+    this.sfx?.('shot', { sound: d.sound, wid: d.id });
+    if (d.mag && this.ammo <= 0 && this.reserve > 0) this.startReload(); // recarrega sozinho quando esvazia
     return true;
   }
 
@@ -74,6 +180,7 @@ export class Weapon {
     if (this.meleeCooldown > 0 || !this._canAct()) return false;
     this.meleeCooldown = MELEE.cooldown;
     this.onMelee?.();
+    this.sfx?.('swing');
 
     const eye = this.owner.getEyePosition(this._origin);
     const aim = this.owner.getAimDirection(this._dir);
@@ -92,4 +199,14 @@ export class Weapon {
     }
     return true;
   }
+}
+
+/** Direção com dispersão aleatória dentro de um cone (distribuição uniforme no disco). */
+export function spreadDir(aim, spread, out) {
+  _side.crossVectors(aim, _up.set(0, 1, 0));
+  if (_side.lengthSq() < 1e-6) _side.set(1, 0, 0);
+  _side.normalize();
+  _up.crossVectors(_side, aim).normalize();
+  const a = Math.random() * Math.PI * 2, r = Math.sqrt(Math.random()) * spread;
+  return out.copy(aim).addScaledVector(_side, Math.cos(a) * r).addScaledVector(_up, Math.sin(a) * r).normalize();
 }

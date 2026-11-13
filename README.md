@@ -1,16 +1,18 @@
-# Programa de Auditório Clandestino — Greybox (Fase 3: as 6 etapas)
+# Programa de Auditório Clandestino — Greybox (Fase 4: armas reais, rede e som)
 
 FPS 1v1 com Three.js + cannon-es. Quiz de matemática → erra e vai pro teto → tiroteio com ragdoll.
 
-Por padrão você joga em **tela cheia contra um bot offline** (o P2, "FONE"), que se comporta como um jogador em outro PC. Para voltar ao 1v1 local de tela dividida: `CONFIG.game.mode = 'splitscreen'` em `src/config.js`.
+Por padrão você joga em **tela cheia contra um bot offline** (o P2, "FONE"), que se comporta como um jogador em outro PC — ou **em rede** com outro aparelho (PC ↔ celular, celular ↔ celular). Para o 1v1 local de tela dividida: `CONFIG.game.mode = 'splitscreen'` em `src/config.js`.
 
 ## Rodar
 
 ```bash
 npm install
 npm run dev              # http://localhost:5173
-npm test                 # física + bot + PARTIDA INTEIRA bot × bot (regras das etapas 1 e 2)
+npm test                 # física + bot + balística + PARTIDA INTEIRA bot × bot
 npm run build:standalone # gera dist-standalone/index.html (abre com dois cliques, sem servidor)
+npm run lan-server       # servidor de rede local (jogar em rede SEM internet)
+npm run dev:lan          # abre o jogo pra rede: o celular acessa http://IP-DO-PC:5173
 ```
 
 ## Menu, pausa e HUD
@@ -20,6 +22,15 @@ npm run build:standalone # gera dist-standalone/index.html (abre com dois clique
 - **Ajustar HUD:** arraste os botões (Atirar, Soco, Pular, Agachar, Correr), a pausa, o placar, a vida e a arma/dinheiro. Toque num item para mudar o tamanho. "Padrão" desfaz tudo.
 - **Movimento:** PC: Espaço pula, Shift corre, C agacha. Celular: botão PULAR; AGACHAR e CORRER ligam/desligam (o joystick no talo também corre). Agachado você anda mais devagar, o olho desce e o hitbox fica menor (a cabeça baixa junto).
 - **Quiz e pedra-papel-tesoura:** quando alguém vai pro teto, o cartão some para todo mundo assistir ao voo. Quem ainda não respondeu fica com um cartão mini no rodapé.
+
+## Jogar em rede (LAN)
+
+Menu → **JOGAR EM REDE (LAN)**. Um aparelho toca em **CRIAR SALA** e aparece um código de 4 letras; o outro digita o código e toca em **ENTRAR**. A partida começa sozinha quando os dois estão conectados. Funciona PC ↔ celular (APK ou navegador) e celular ↔ celular.
+
+- **Com internet (padrão):** o servidor público do PeerJS só "apresenta" os dois aparelhos; depois o jogo vai **direto pela sua rede** (WebRTC).
+- **Sem internet:** no PC rode `npm run lan-server`. Ele mostra o IP do PC (ex.: `192.168.0.10`). Nos **dois** aparelhos, em "Sem internet? Servidor no PC", digite esse IP. Se o Windows perguntar, libere o firewall para redes privadas.
+- Quem cria a sala é o **host**: a física e as regras rodam nele, e ele manda a cena ~60×/s. O convidado mira localmente (sem atraso no mouse/dedo) e manda os comandos. Pra teste interno no mesmo Wi-Fi isso fica liso.
+- Pausar em rede só abre o menu — o jogo continua para o outro. "Sair da sala" (ou desconectar) leva os dois de volta ao menu.
 
 ## Celular / APK
 
@@ -31,38 +42,46 @@ O APK é gerado no GitHub (`.github/workflows/android-apk.yml`): a cada push na 
 
 | # | Etapa | Mapa | Dinheiro | Perdeu? |
 |---|---|---|---|---|
-| 1 | **Quiz** (3 perguntas) | Estúdio | +$300 por acerto | errou → teto |
-| 2 | **PvP**, 4 rounds, loja de 15 s | Estúdio | round +$500 · kill +$300 × multiplicadores | — |
-| 3 | **Pedra, papel e tesoura** (melhor de 3) | Estúdio | +$300 por rodada ganha | perdeu a rodada → teto |
+| 1 | **Quiz** (3 perguntas) | Estúdio | +$400 por acerto | errou → teto |
+| 2 | **PvP**, 4 rounds, loja de 15 s | Estúdio | round +$800 · kill +$400 × multiplicadores | — |
+| 3 | **Pedra, papel e tesoura** (melhor de 3) | Estúdio | +$400 por rodada ganha | perdeu a rodada → teto |
 | 4 | **PvP**, 4 rounds | **Bastidores**: corredores, barra giratória no centro e paredes deslizantes que derrubam | idem | — |
-| 5 | **Basquete com bola-bomba** (melhor de 3) | **Quadra** | +$400 por cesta | ninguém morre: no chão ou num jogador a bola explode e arremessa; quem voa levanta com outra bola |
+| 5 | **Basquete com bola-bomba** (melhor de 3) | **Quadra** | +$500 por cesta | ninguém morre: no chão ou num jogador a bola explode e arremessa; quem voa levanta com outra bola |
 | 6 | **PvP final**, 4 rounds | **Rua** ("sapo atravessando"): carros só derrubam, quem mata é tiro | idem | — |
 
-- **Cada minigame (1, 3 e 5) pune quem fez menos pontos no PvP seguinte:** com 0 pontos fica com o **patinho**, com 1 ou mais fica com o **estilingue**, e em nenhum dos casos pode comprar nada nos 4 rounds. Se todos empatarem, **"saem na mão"**: desempate só no soco.
+- **Cada minigame (1, 3 e 5) pune quem fez menos pontos no PvP seguinte:** com 0 pontos fica com o **patinho**, com 1 ou mais fica com o **estilingue**, sem loja. **Se o castigado eliminar alguém, a loja libera no round seguinte** (a punição que sobra é ter menos dinheiro). Se todos empatarem, **"saem na mão"**: desempate só no soco.
 - **Vencedor da partida:** o time com mais rounds ganhos nos 3 PvPs (12 rounds).
+- **Fim de partida:** não recomeça sozinho. Cada um escolhe **PEDIR REVANCHE** ou **SAIR DA SALA**. A revanche só começa quando **todos aceitam**; se alguém sair, volta pro menu. (O bot sempre topa.)
 - **Basquete:** cada jogador tem a própria bola-bomba (outra aparece na mão 0,9 s depois de arremessar). Na cesta é ponto. No chão ou num jogador ela explode e arremessa quem estiver perto, sem dano. SOCO empurra. A cesta do outro lado é a sua.
 - Para testar uma etapa direto: painel **G** → Testes → "Pular para etapa".
 
 Os mapas ficam em `src/world/maps.js` e o roteiro em `CONFIG.match.stages`.
 
-### Armas (`src/data/catalog.js`)
+### Armas e balística (`src/data/catalog.js`)
 
-| Arma | Preço | Dano | Observação |
-|---|---|---|---|
-| Patinho de Borracha | só para quem errou tudo | 5 | arremessa e precisa buscar de volta |
-| Estilingue de Feira | grátis (padrão) | 12 | a mais fraca |
-| Pistola de Bolinha | $300 | 20 | headshot ×2,5 |
-| Escopeta de Confete | $650 | 14 × 7 | derruba |
-| Metralhadora de Quermesse | $900 | 11 | rápida |
-| Canhão de Melancia | $1300 | 75 | derruba, lenta |
-| Colete de Isopor / Colchão | $250 / $450 | +25 / +50 | — |
-| Soco (todos) | — | 34 | botão direito ou V, derruba |
+Modelos 3D: **Ultimate Gun Pack, de Quaternius (CC0, domínio público)** — RPG, minigun e estilingue são feitos em código.
 
-Armas com "derruba" ativam o ragdoll a cada acerto. As outras dão só um tranco. A kill sempre arremessa forte.
+| Categoria | Arma | Preço | Dano (cabeça) | Cadência | Pente |
+|---|---|---|---|---|---|
+| — | Estilingue (padrão) | grátis | 18 (36) | semi | 8 / ∞ |
+| Pistolas | Glock · USP · Revólver .38 · Desert Eagle | $200 · $300 · $350 · $700 | 22 · 30 · 42 · 58 (×2,4–2,6) | semi | 17 · 12 · 6 · 7 |
+| Submetralhadoras | MP7 · MP5 · UMP-45 | $1000 · $1100 · $1200 | 18 · 21 · 27 (×2,2) | 950 · 800 · 600 rpm | 40 · 30 · 25 |
+| Fuzis | AK-47 · M4 · HK416 | $1900 · $2100 · $2300 | 36 · 31 · 32 (×3,5: AK mata com 1 na cabeça) | 600 · 800 · 760 rpm | 30 |
+| Escopetas | Cano Serrado · Pump · Semiautomática | $700 · $900 · $1500 | 14×10 · 15×8 · 12×7 chumbos | 2 tiros · bomba · semi | 2 · 6 · 7 |
+| Pesadas | RPG-7 · Minigun | $3200 · $4000 | explosão 130 (raio 4,5 m) · 13 | — · 2000 rpm (gira 0,7 s antes) | 1+4 · 200 |
+| Colete | Leve · Pesado | $400 · $700 | +25 · +50 (absorve **metade** do dano) | | |
+| Soco (todos) | | | 34, derruba | | |
+
+Como no CS/Valorant: **bala instantânea** (raio, sem projétil), **headshot** pelo ponto de impacto, **dano cai com a distância** (SMG e escopeta perdem muito de longe), **pente + reserva + recarga** (automática quando esvazia, ou R), **recuo** que sobe a mira a cada tiro e volta quando você solta, **dispersão** que abre andando/pulando/em rajada e fecha parado, agachado ou **mirando (zoom)**. Armas pesadas deixam você mais lento. Escopetas e RPG derrubam (ragdoll). Ajuste fino no painel **G**: dano ×, recuo ×, dispersão ×.
+
+## Sons
+
+Tudo sintetizado na hora (WebAudio, sem arquivos): tiro diferente por arma, recarga, sem bala, soco, bala pegando, ricochete, hitmarker, explosão, foguete, minigun girando, patinho, "boing" de quem vai pro teto, ding/buzina do quiz, caixa registradora da loja, buzina de abertura, **plateia** (murmúrio contínuo + vibra na kill, "óóóh" no headshot, risada quando alguém erra) e **cenário** (motor e buzina dos carros na Rua, barra giratória). Sons em 3D (vem do lado certo). Volume de efeitos e da plateia em Configurações.
 
 ## Controles
 
-Contra o bot: WASD + mouse (clique na tela para travar), clique atira, **botão direito/V soca**, 1/2 responde o quiz, 1/2/3 = pedra/papel/tesoura, 1–6 compra, Enter pronto.
+Contra o bot / em rede: WASD + mouse (clique na tela para travar), clique atira, **botão direito/Z mira (zoom)**, **R recarrega**, **V / botão do meio soca**, 1/2 responde o quiz, 1/2/3 = pedra/papel/tesoura, loja: **Q/E troca de aba**, 1–4 compra, Enter pronto.
+Celular: botões ATIRAR, SOCO, PULAR, **RECARREGAR** e **MIRA** (liga/desliga), além de AGACHAR e CORRER.
 
 Em tela dividida (`CONFIG.game.mode = 'splitscreen'`):
 
@@ -71,7 +90,8 @@ Em tela dividida (`CONFIG.game.mode = 'splitscreen'`):
 | Andar | WASD | Setas · analógico esquerdo |
 | Mirar | Mouse (clique na tela p/ travar) | IJKL / Numpad 8-4-5-6 · analógico direito |
 | Atirar | Clique esquerdo · F | Enter / Numpad 0 · RT |
-| Socar | Botão direito · V | Shift direito · RB |
+| Socar | V · botão do meio | Shift direito · RB |
+| Mirar / recarregar | Botão direito · Z / R | Numpad / e - · LT / X |
 | Responder | 1 / 2 | 9 / 0 · X / B |
 | Comprar | 1–6 · clique | clique |
 
@@ -83,7 +103,12 @@ Em tela dividida (`CONFIG.game.mode = 'splitscreen'`):
 src/
   config.js                 ← TODOS os valores ajustáveis (CONFIG.chaos = força do caos)
   ai/BotController.js       bot offline (mesma interface dos controles): quiz, loja, tiro, soco, patinho
-  data/catalog.js           armas, coletes e soco (dados puros)
+  data/catalog.js           armas (balística de cada uma), coletes, soco e abas da loja
+  assets/guns/*.glb         modelos 3D das armas (Quaternius, CC0)
+  net/                      jogo em rede: NetSession (PeerJS/WebRTC), NetHost (snapshots + HUD remoto), NetGuest
+  systems/Ballistics.js     tiro hitscan: dispersão, queda de dano, headshot, explosão do RPG
+  systems/Effects.js        traçante, impacto, clarão de explosão
+  systems/AudioSystem.js    todos os sons (sintetizados, 3D) e a plateia
   systems/DamageSystem.js   dano, colete, headshot, tranco/ragdoll, kill
   systems/Basketball.js     bola: pegar, carregar, arremessar, cesta
   systems/Grenades.js       granadas que arremessam sem dano
@@ -108,7 +133,8 @@ src/
     ChaosForces.js          punishLaunch() e shotKnockback() — as duas forças do jogo
   entities/
     Character.js            proxy de controle + ragdoll com juntas
-    Weapon.js               cadência e disparo
+    Weapon.js               gatilho semi/auto, pente, recarga, mira (ADS), recuo, minigun
+    GunModels.js            carrega e normaliza os modelos 3D (+ RPG/minigun/estilingue em código)
     ProjectileSystem.js     esferas físicas, detecção de acerto (fila fora do passo físico)
   camera/
     PlayerCamera.js         1ª pessoa / chase cam no ragdoll / layers
@@ -119,7 +145,7 @@ src/
   ui/HUD.js + style.css
 ```
 
-Fluxo: `QUIZ → PvP ×4 → RPS → PvP ×4 (Bastidores) → BASQUETE → PvP ×4 (Rua) → MATCH_END → nova partida` (com TIEBREAK depois de qualquer minigame empatado).
+Fluxo: `QUIZ → PvP ×4 → RPS → PvP ×4 (Bastidores) → BASQUETE → PvP ×4 (Rua) → MATCH_END → (revanche aceita por todos) nova partida` (com TIEBREAK depois de qualquer minigame empatado).
 
 ## Como o ragdoll funciona
 
@@ -151,6 +177,7 @@ Tudo em `src/config.js → CONFIG.chaos`. A massa total do boneco é ~8,2 kg, en
 
 - Levantar é instantâneo (teleporte para a pose em pé). Um blend animado vem depois.
 - Cotovelos não têm limite (cannon-es não limita hinge). Se quiser menos bizarro, troque por `ConeTwistConstraint` com cone pequeno.
-- Projéteis sofrem gravidade (arco). Para tiro reto, compense com força anti-gravidade no `ProjectileSystem`.
+- Estilingue e patinho continuam sendo projéteis físicos (com arco); as armas de fogo são instantâneas.
+- Rede: o convidado vê o próprio boneco com o atraso da rede (sem previsão de movimento). No mesmo Wi-Fi é imperceptível; pela internet longe pode "escorregar". Por enquanto 2 jogadores por sala.
 - Bot sem navegação de verdade (sem navmesh): contorna obstáculos trocando de lado quando trava.
 - No modo tela dividida, 2 jogadores no mesmo teclado é apertado: para o P2, use gamepad.

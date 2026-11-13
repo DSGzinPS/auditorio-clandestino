@@ -18,6 +18,10 @@ export class Settings {
       chaos: 1,             // CONFIG.chaos.master
       showDebug: false,     // painel lil-gui
       startStage: 0,        // começar a partida em qual etapa
+      volume: 0.8,          // efeitos (tiros, explosões…)
+      crowd: 0.6,           // plateia
+      lanServer: '',        // rede: IP do servidor local (vazio = servidor público PeerJS)
+      playerName: '',
     };
     try {
       const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');
@@ -43,6 +47,7 @@ export class Settings {
     CONFIG.character.touchLookSensitivity = BASE.touch * d.sensitivity;
     CONFIG.chaos.master = d.chaos;
     game.setQuality?.(d.quality);
+    game.audio?.setVolume(d.volume, d.crowd);
     if (game.gui) d.showDebug ? game.gui.show() : game.gui.hide();
   }
 }

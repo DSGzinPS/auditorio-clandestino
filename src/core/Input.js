@@ -1,7 +1,7 @@
 // Estado bruto de teclado e mouse. Não sabe nada de jogo:
 // os "esquemas de controle" (Controls.js) traduzem isso em intenções.
 
-const BLOCK_DEFAULT = new Set([
+const BLOCK_DEFAULT = new Set(['Tab', 
   'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
   'Space', 'Enter', 'NumpadEnter', 'Tab',
 ]);
@@ -42,7 +42,7 @@ export class Input {
       this.mouseDY += e.movementY;
     });
     element.addEventListener('mousedown', (e) => this.mouseButtons.add(e.button));
-    element.addEventListener('contextmenu', (e) => e.preventDefault()); // botão direito = soco
+    element.addEventListener('contextmenu', (e) => e.preventDefault()); // botão direito = mirar
     window.addEventListener('mouseup', (e) => this.mouseButtons.delete(e.button));
   }
 

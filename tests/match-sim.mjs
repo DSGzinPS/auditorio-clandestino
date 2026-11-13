@@ -4,6 +4,7 @@ import { Game } from '../src/core/Game.js';
 import { GameStates } from '../src/core/StateMachine.js';
 import { CONFIG } from '../src/config.js';
 import { resolveRps } from '../src/states/RpsState.js';
+import { blankIntent } from '../src/core/Controls.js';
 
 let fails = 0;
 const check = (ok, msg) => { console.log(`${ok ? '✔' : '✘'} ${msg}`); if (!ok) fails++; };
@@ -110,11 +111,51 @@ function playMatch(label, rigging, maxSeconds = 3000) {
   check(r.amount === base * CONFIG.economy.duckKillMult, `kill com patinho: $${r.amount}`);
   b.revive(false); b.armor = 50;
   b.takeDamage(30);
-  check(b.armor === 20 && b.hp === 100, `colete absorve antes do HP (colete ${b.armor}, HP ${b.hp})`);
+  check(b.armor === 35 && b.hp === 85, `colete absorve metade do dano (colete ${b.armor}, HP ${b.hp})`);
   m.restrictions = [null, 'weak'];
   m.money = [2000, 2000];
-  check(m.buy(1, 'pistol').ok === false, 'restrito não compra mesmo com dinheiro');
-  check(m.buy(0, 'cannon').ok && m.money[0] === 700, `compra desconta: $${m.money[0]}`);
+  check(m.buy(1, 'usp').ok === false, 'restrito não compra mesmo com dinheiro');
+  check(m.buy(0, 'ak47').ok && m.money[0] === 100, `compra desconta: $${m.money[0]}`);
+}
+
+// ---------------------------------------------------------------- castigo liberado com kill
+{
+  console.log('\n=== Castigo do minigame ===');
+  const g = new Game(null, null, { headless: true, bots: [0, 1] });
+  g.flow.skipToPvp();
+  const m = g.flow.match;
+  m.restrictions = ['duck', null];
+  m.prepareRound();
+  g.sm.change(GameStates.ROUND);
+  const [a, b] = g.players;
+  check(a.weapon.def.id === 'duck' && !m.canShop(0), 'castigado começa só com o patinho e sem loja');
+  g.damage.apply({ target: b, attacker: a, weapon: { id: 'duck', name: 'Patinho', damage: 999, headshotMult: 1, knockback: 50 }, kind: 'projectile', headshot: false, direction: { x: 0, y: 0, z: -1 } });
+  check(b.dead && m.canShop(0), 'matou com o castigo → loja liberada no próximo round');
+}
+
+// ---------------------------------------------------------------- fim de partida: revanche / sair
+{
+  console.log('\n=== Fim de partida ===');
+  const g = new Game(null, null, { headless: true, bots: [1] });
+  g.schemes[0] = { read: () => blankIntent() };
+  g.flow.newMatch();
+  g.sm.change(GameStates.MATCH_END);
+  let t = 0;
+  while (t < 6) { g.step(dt); t += dt; }
+  check(g.sm.is(GameStates.MATCH_END), 'não recomeça sozinha (bot pediu, esperando você)');
+  g.sm.current.vote(0, 'rematch');
+  t = 0;
+  while (t < 2) { g.step(dt); t += dt; }
+  check(g.sm.is(GameStates.QUIZ) && g.flow.match.totalRounds === 0, 'os dois aceitaram → revanche começa do quiz');
+
+  const g2 = new Game(null, null, { headless: true, bots: [1] });
+  g2.schemes[0] = { read: () => blankIntent() };
+  g2.flow.newMatch();
+  g2.sm.change(GameStates.MATCH_END);
+  g2.sm.current.vote(0, 'leave');
+  t = 0;
+  while (t < 3) { g2.step(dt); t += dt; }
+  check(g2.inMenu && !g2.flow.match, 'sair da sala → volta pro menu');
 }
 
 // ---------------------------------------------------------------- basquete isolado

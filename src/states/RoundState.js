@@ -18,6 +18,7 @@ export class RoundState extends State {
     g.players.forEach((p) => { p.frozen = false; });
     g.hud.setCrosshairs(true);
     g.hud.flash(null, `ROUND ${m.roundInStage + 1} · LUTEM!`, 'big');
+    g.sfx('horn');
   }
 
   update(dt) {
@@ -28,7 +29,7 @@ export class RoundState extends State {
     g.players.forEach((p, i) => {
       if (p.dead) return;
       const it = g.intents[i];
-      if (it.fire) p.weapon.tryFire();
+      p.weapon.trigger(it, dt);
       if (it.melee) p.weapon.tryMelee(g.players, (hit) => g.damage.apply(hit));
     });
     g.projectiles.drainHits((hit) => g.damage.apply(hit));
@@ -57,8 +58,11 @@ export class RoundState extends State {
     const m = g.flow.match;
     m.deaths[ctx.target.index]++;
     if (ctx.attacker && ctx.attacker !== ctx.target) {
+      const ai = ctx.attacker.index;
+      const freed = !!m.restrictions[ai];
+      if (freed) m.restrictions[ai] = null; // castigado do minigame matou alguém: volta a comprar
       const r = m.rewardKill(ctx);
-      g.hud.flash(ctx.attacker.index, `+$${r.amount} ${r.tags.length ? r.tags.join(' · ') : 'KILL'}`, 'good');
+      g.hud.flash(ai, `+$${r.amount} ${r.tags.length ? r.tags.join(' · ') : 'KILL'}${freed ? ' · LOJA LIBERADA!' : ''}`, 'good');
       g.hud.killfeed(ctx.attacker, ctx.target, ctx.weapon, r.tags);
     }
     g.hud.flash(ctx.target.index, 'VOCÊ CAIU!', 'bad');

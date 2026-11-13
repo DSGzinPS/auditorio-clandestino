@@ -40,6 +40,7 @@ export class BotController {
 
     this.quiz = null;
     this.shopping = null;
+    this.voteAt = null;
     this.strafeDir = Math.random() < 0.5 ? -1 : 1;
     this.strafeTimer = 0;
     this.stuckTimer = 0;
@@ -71,7 +72,7 @@ export class BotController {
     this.rps = { at: rand(0.8, 3.5), t: 0, pick: Math.floor(Math.random() * 3), sent: false };
   }
 
-  /** Planeja as compras: melhor arma que cabe no bolso, depois o melhor colete com o troco. */
+  /** Planeja as compras: melhor arma que cabe no bolso (guardando pro colete), depois o colete. */
   onBuyPhase() {
     const m = this.game.flow.match;
     const i = this.self.index;
@@ -80,7 +81,9 @@ export class BotController {
       let money = m.money[i];
       const weapons = SHOP_ORDER.map(shopItem).filter((it) => it.kind === 'weapon').sort((a, b) => b.price - a.price);
       const current = this.self.weapon.def.price ?? 0;
-      const w = weapons.find((it) => it.price <= money && it.price > current);
+      const keep = this.self.armor < 25 && money >= 1000 ? 400 : 0; // CS: arma + colete
+      const w = weapons.find((it) => it.price <= money - keep && it.price > current)
+        ?? weapons.find((it) => it.price <= money && it.price > current);
       if (w) { plan.push(w.id); money -= w.price; }
       const armors = SHOP_ORDER.map(shopItem).filter((it) => it.kind === 'armor').sort((a, b) => b.price - a.price);
       const a = armors.find((it) => it.price <= money && it.points > this.self.armor);
@@ -89,9 +92,18 @@ export class BotController {
     this.shopping = { plan, delay: rand(1, 4) }; // "olha a loja" um pouco antes de comprar
   }
 
+  /** Fim de partida: o bot sempre topa a revanche (depois de "pensar" um pouco). */
+  onMatchEnd() {
+    this.voteAt = rand(1.2, 2.8);
+  }
+
   read(dt) {
     const it = blankIntent();
     const sm = this.game.sm;
+    if (sm.is(GameStates.MATCH_END)) {
+      if (this.voteAt !== null && (this.voteAt -= dt) <= 0) { it.rematch = true; this.voteAt = null; }
+      return it;
+    }
     if (sm.is(GameStates.QUIZ)) this._quiz(dt, it);
     else if (sm.is(GameStates.BUY)) this._buy(dt, it);
     else if (sm.is(GameStates.RPS)) this._rps(dt, it);
@@ -117,7 +129,7 @@ export class BotController {
     s.delay -= dt;
     if (s.delay > 0) return;
     if (s.plan.length) {
-      it.buy = SHOP_ORDER.indexOf(s.plan.shift());
+      it.buyId = s.plan.shift();
       s.delay = rand(0.3, 0.8);
     } else {
       it.ready = true;
@@ -238,10 +250,13 @@ export class BotController {
     const flat = Math.hypot(dx, dz);
     const dist = Math.hypot(flat, dy);
 
-    // Compensação: queda do projétil + movimento do alvo
-    const speed = def.speed ?? 30;
+    // Compensação: bala instantânea mira direto; projétil cai e precisa de "lead"
+    const hitscan = def.type === 'hitscan';
+    const rocket = def.type === 'rocket';
+    const speed = hitscan ? Infinity : def.speed ?? 30;
     const t = dist / speed;
-    const drop = unarmed ? 0 : 0.5 * -CONFIG.physics.gravity * t * t * b.leadSkill;
+    const drop = unarmed || hitscan || rocket ? 0 : 0.5 * -CONFIG.physics.gravity * t * t * b.leadSkill;
+    if (rocket && foe.mode === 'controlled') aim.y -= 1.1; // foguete no pé (o raio pega de qualquer jeito)
     const fv = foe.velocity;
     const lx = dx + fv.x * t * b.leadSkill;
     const lz = dz + fv.z * t * b.leadSkill;
@@ -276,7 +291,20 @@ export class BotController {
 
     // Ataque
     const [rMin, rMax] = unarmed ? [0, 1.2] : def.botRange ?? [b.rangeMin, b.rangeMax];
-    if (!unarmed) it.fire = sees && allowed && onTarget && reacted && dist < Math.max(rMax * 1.6, b.maxFireRange * 0.5);
+    const w = me.weapon;
+    let want = !unarmed && sees && allowed && onTarget && reacted && dist < Math.max(rMax * 1.6, b.maxFireRange * 0.5);
+    if (rocket && dist < 5) want = false; // não se explode junto
+    if (want && def.type !== 'throw' && !def.auto) {
+      // semi-automática: precisa soltar e apertar de novo (no ritmo de um humano)
+      this.semiT = (this.semiT ?? 0) - dt;
+      if (this.semiT <= 0 && !this.lastFire) { it.fire = true; this.semiT = rand(0.12, 0.3); }
+    } else {
+      it.fire = want;
+    }
+    if (def.spinUp && sees && dist < rMax * 2) it.fire = true; // minigun: já gira antes de mirar
+    this.lastFire = it.fire;
+    it.ads = !unarmed && sees && reacted && dist > 11 && ['pistol', 'rifle', 'heavy'].includes(def.category) && !def.spinUp;
+    if (!sees && w.ammo < (def.mag ?? 0) * 0.4 && w.reserve > 0) it.reload = true; // recarrega escondido
     if (flat < MELEE.range && Math.abs(dYaw) < 0.6 && reacted) it.melee = true; // colou, soca
 
     // Movimento

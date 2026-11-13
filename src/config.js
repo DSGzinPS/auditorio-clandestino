@@ -82,13 +82,13 @@ export const CONFIG = {
   },
 
   weapon: {
-    projectileSpeed: 38,
-    projectileRadius: 0.18,
     projectileMass: 0.6,
-    fireCooldown: 0.22,
     maxProjectiles: 40,
     projectileLifetime: 4,
     minHitSpeed: 6,          // bola rolando devagar não derruba ninguém
+    damageMult: 1,           // multiplicadores globais de ajuste (painel G)
+    recoilMult: 1,
+    spreadMult: 1,
   },
 
   quiz: {
@@ -119,12 +119,12 @@ export const CONFIG = {
 
   // ---------------- DINHEIRO ----------------
   economy: {
-    startMoney: 0,
-    quizCorrect: 300,        // por pergunta certa (errar só deixa de ganhar)
-    rpsWin: 300,             // por rodada ganha no pedra-papel-tesoura
-    basketPoints: 400,       // por cesta (para quem arremessou)
-    roundWin: 500,           // para cada jogador do time que venceu o round
-    killReward: 300,         // base por kill, multiplicada abaixo
+    startMoney: 400,
+    quizCorrect: 400,        // por pergunta certa (errar só deixa de ganhar)
+    rpsWin: 400,             // por rodada ganha no pedra-papel-tesoura
+    basketPoints: 500,       // por cesta (para quem arremessou)
+    roundWin: 800,           // para cada jogador do time que venceu o round
+    killReward: 400,         // base por kill, multiplicada abaixo
     headshotMult: 2,
     meleeMult: 3,            // kill no soco
     duckKillMult: 5,         // kill com o patinho (humilhação)
@@ -161,5 +161,6 @@ export const CONFIG = {
   player: {
     maxHp: 100,
     maxArmor: 50,
+    armorAbsorb: 0.5,        // colete absorve metade do dano (estilo CS)
   },
 };

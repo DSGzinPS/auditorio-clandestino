@@ -13,6 +13,7 @@ import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { CONFIG } from '../config.js';
 import { GROUP, playerGroup, ALL_PLAYERS_MASK } from '../physics/PhysicsWorld.js';
+import { GunModels } from './GunModels.js';
 
 export const STAND_HEIGHT = 0.85; // centro do controller acima do chão
 const EYE_OFFSET = 0.75;           // olho acima do centro do controller
@@ -293,6 +294,7 @@ export class Character {
   /** @param ground posição no CHÃO (y = altura do piso) */
   teleport(ground, yaw = this.yaw) {
     if (this.mode === 'ragdoll') this._leaveRagdoll();
+    this.aimEpoch = (this.aimEpoch ?? 0) + 1; // rede: a mira do convidado é reposicionada
     this.crouchT = 0;
     this.crouching = false;
     this.controller.shapeOffsets[1].y = TOP_SPHERE_Y;
@@ -308,10 +310,10 @@ export class Character {
   // ------------------------------------------------------------------ vida
   get alive() { return !this.dead; }
 
-  /** Colete absorve primeiro, depois HP. */
+  /** Colete (estilo CS): absorve metade do dano enquanto tiver pontos. */
   takeDamage(amount) {
     if (this.dead) return { killed: false, dealt: 0 };
-    const absorbed = Math.min(this.armor, amount);
+    const absorbed = Math.min(this.armor, amount * CONFIG.player.armorAbsorb);
     this.armor -= absorbed;
     this.hp = Math.max(0, this.hp - (amount - absorbed));
     if (this.hp <= 0) {
@@ -329,6 +331,17 @@ export class Character {
     if (!keepArmor) this.armor = 0;
   }
 
+  /** Recuo: a mira sobe (e treme pro lado). Uma parte volta sozinha quando para de atirar. */
+  applyRecoil(pitch, yaw = 0) {
+    const m = CONFIG.weapon.recoilMult ?? 1;
+    const dp = pitch * m, dy = (Math.random() * 2 - 1) * yaw * m;
+    this.pitch = Math.min(1.45, this.pitch + dp);
+    this.yaw += dy;
+    this.recoilDebt = (this.recoilDebt ?? 0) + dp * 0.55;
+    this.sinceShot = 0;
+    this.onRecoil?.(dp, dy); // rede: o convidado aplica na própria mira
+  }
+
   /** "Tranco" para armas que não derrubam: empurra o controller por um instante. */
   addFlinch(direction, knockback) {
     if (this.mode !== 'controlled') return;
@@ -344,9 +357,21 @@ export class Character {
 
   /** Cor da faixa / visibilidade da arma presa ao corpo, conforme a arma equipada. */
   setWeaponLook(def) {
+    this.lookId = def.id; // rede: o convidado mostra a mesma arma no corpo
     const m = this.parts.weapon.mesh;
-    m.visible = def.type === 'projectile';
-    if (m.userData.accent && def.color !== undefined) m.userData.accent.color.setHex(def.color);
+    const { slot, fallback, accent } = m.userData;
+    const show = def.type !== 'none' && def.type !== 'throw' && def.type !== 'melee';
+    m.visible = show;
+    slot.clear();
+    if (show && def.model && GunModels.ready) {
+      const model = GunModels.make(def.model, def.worldLen ?? 0.5);
+      model.traverse((o) => { o.layers.set(this.layer); if (o.isMesh) o.castShadow = true; });
+      slot.add(model);
+      fallback.visible = false;
+    } else {
+      fallback.visible = true;
+      if (accent && def.color !== undefined) accent.color.setHex(def.color);
+    }
   }
 
   /** Impulso distribuído por massa (o boneco inteiro voa junto) + giro aleatório. */
@@ -377,14 +402,29 @@ export class Character {
       v.x = 0;
       v.z = 0;
       this.flinch.setZero();
-      if (this.canLook) {
+      if (this.canLook && intent.setYaw !== undefined) {
+        this.yaw = intent.setYaw;
+        this.pitch = clamp(intent.setPitch ?? this.pitch, -1.45, 1.45);
+      } else if (this.canLook) {
         this.yaw -= intent.lookX;
         this.pitch = clamp(this.pitch - intent.lookY, -1.45, 1.45);
       }
       return;
     }
-    this.yaw -= intent.lookX;
-    this.pitch = clamp(this.pitch - intent.lookY, -1.45, 1.45);
+    if (intent.setYaw !== undefined) { // jogador remoto: a mira vem pronta do outro aparelho
+      this.yaw = intent.setYaw;
+      this.pitch = clamp(intent.setPitch ?? this.pitch, -1.45, 1.45);
+    } else {
+      this.yaw -= intent.lookX;
+      this.pitch = clamp(this.pitch - intent.lookY, -1.45, 1.45);
+    }
+    // o recuo volta um pouco sozinho quando para de atirar
+    this.sinceShot = (this.sinceShot ?? 1) + dt;
+    if (this.recoilDebt > 0 && this.sinceShot > 0.12) {
+      const back = Math.min(this.recoilDebt, 0.45 * dt);
+      this.pitch -= back;
+      this.recoilDebt -= back;
+    }
 
     // agachar (hitbox menor e olho mais baixo) · correr · pular
     const ch = CONFIG.character;
@@ -397,7 +437,9 @@ export class Character {
     if (len > 1) { mx /= len; mz /= len; }
     this.sprinting = !!intent.sprint && mz > 0.2 && this.crouchT < 0.5;
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
-    const speed = ch.moveSpeed * (this.sprinting ? ch.sprintMultiplier : 1) * (1 - this.crouchT * (1 - ch.crouchMultiplier));
+    const w = this.weapon;
+    const gear = (w?.def.speedMult ?? 1) * (w?.ads ? 0.7 : 1);
+    const speed = ch.moveSpeed * gear * (this.sprinting ? ch.sprintMultiplier : 1) * (1 - this.crouchT * (1 - ch.crouchMultiplier));
     // frente = (-sin, -cos) · direita = (cos, -sin)
     v.x = (-sin * mz + cos * mx) * speed + this.flinch.x;
     v.z = (-cos * mz - sin * mx) * speed + this.flinch.z;
@@ -497,7 +539,10 @@ function buildWeaponMesh(color, hx, hy, hz) {
   stripe.position.y = hy * 0.4;
   const grip = new THREE.Mesh(new THREE.BoxGeometry(hx * 1.6, 0.18, 0.09), dark);
   grip.position.set(0, -hy - 0.07, hz * 0.45);
-  g.add(body, barrel, stripe, grip);
-  g.userData.accent = accent;
+  const fallback = new THREE.Group();
+  fallback.add(body, barrel, stripe, grip);
+  const slot = new THREE.Group(); // modelo 3D da arma equipada
+  g.add(fallback, slot);
+  Object.assign(g.userData, { accent, fallback, slot });
   return g;
 }

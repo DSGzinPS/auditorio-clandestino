@@ -16,7 +16,9 @@ export class TouchControls {
     this.fire = false;
     this.melee = false;
     this.jump = false;
-    this.crouchOn = false; // AGACHAR e CORRER são liga/desliga
+    this.adsOn = false;    // MIRA, AGACHAR e CORRER são liga/desliga
+    this.reload = false;
+    this.crouchOn = false;
     this.sprintOn = false;
     this.stickSprint = false; // joystick no talo também corre
     this.visible = false;
@@ -31,6 +33,8 @@ export class TouchControls {
         <div class="touch-btn touch-jump">PULAR</div>
         <div class="touch-btn touch-crouch">AGACHAR</div>
         <div class="touch-btn touch-sprint">CORRER</div>
+        <div class="touch-btn touch-ads">MIRA</div>
+        <div class="touch-btn touch-reload">RECARREGAR</div>
       </div>`);
     this.layer = parent.querySelector('.touch-layer');
     this.base = this.layer.querySelector('.stick-base');
@@ -43,6 +47,8 @@ export class TouchControls {
     this._button(this.layer.querySelector('.touch-jump'), 'jump', false);
     this._toggle(this.layer.querySelector('.touch-crouch'), 'crouchOn', 'sprintOn');
     this._toggle(this.layer.querySelector('.touch-sprint'), 'sprintOn', 'crouchOn');
+    this._toggle(this.layer.querySelector('.touch-ads'), 'adsOn', 'sprintOn');
+    this._button(this.layer.querySelector('.touch-reload'), 'reload', false);
   }
 
   /** Elementos que o editor de HUD pode mover/redimensionar. */
@@ -51,6 +57,7 @@ export class TouchControls {
     return [
       ['fire', q('.touch-fire'), 'Atirar'], ['melee', q('.touch-melee'), 'Soco'], ['jump', q('.touch-jump'), 'Pular'],
       ['crouch', q('.touch-crouch'), 'Agachar'], ['sprint', q('.touch-sprint'), 'Correr'],
+      ['ads', q('.touch-ads'), 'Mira'], ['reload', q('.touch-reload'), 'Recarregar'],
     ];
   }
 
@@ -66,6 +73,7 @@ export class TouchControls {
   _syncToggles() {
     this.layer.querySelector('.touch-crouch').classList.toggle('on', this.crouchOn);
     this.layer.querySelector('.touch-sprint').classList.toggle('on', this.sprintOn);
+    this.layer.querySelector('.touch-ads').classList.toggle('on', this.adsOn);
   }
 
   setVisible(v) {
@@ -82,6 +90,8 @@ export class TouchControls {
       moveX: this.moveX, moveZ: this.moveZ, lookDX: this.lookDX, lookDY: this.lookDY,
       fire: this.fire || this.firePressed, melee: this.melee || this.meleePressed,
       jump: this.jump || this.jumpPressed,
+      ads: this.adsOn,
+      reload: this.reload || this.reloadPressed,
       crouch: this.crouchOn,
       sprint: this.sprintOn || this.stickSprint,
     };
@@ -90,6 +100,7 @@ export class TouchControls {
     this.firePressed = false;
     this.meleePressed = false;
     this.jumpPressed = false;
+    this.reloadPressed = false;
     return r;
   }
 
@@ -97,7 +108,8 @@ export class TouchControls {
     this.moveX = this.moveZ = this.lookDX = this.lookDY = 0;
     this.fire = this.melee = this.jump = false;
     this.firePressed = this.meleePressed = this.jumpPressed = false;
-    this.crouchOn = this.sprintOn = this.stickSprint = false;
+    this.crouchOn = this.sprintOn = this.stickSprint = this.adsOn = false;
+    this.reload = this.reloadPressed = false;
     this._syncToggles();
     this.base.classList.remove('on');
   }

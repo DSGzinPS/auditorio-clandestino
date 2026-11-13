@@ -1,0 +1,3 @@
+Modelos de armas: "Ultimate Gun Pack" por Quaternius (https://quaternius.com)
+Licença: CC0 1.0 Universal (domínio público) — uso livre, inclusive comercial, sem atribuição obrigatória.
+Convertidos de FBX para GLB (FBX2glTF) e reorientados no carregamento (src/entities/GunModels.js).

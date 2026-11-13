@@ -83,8 +83,13 @@ export class QuizState extends State {
       m.quizCorrect[playerIndex]++;
       m.addMoney(playerIndex, CONFIG.economy.quizCorrect, 'Acertou no quiz');
       g.hud.flash(playerIndex, `CERTA RESPOSTA! +$${CONFIG.economy.quizCorrect}`, 'good');
+      g.sfx('ding', null, { forWho: playerIndex });
+      g.sfx('cheer', null, { amount: 0.4 });
     } else {
       punishLaunch(g.players[playerIndex]); // A MECÂNICA DE PUNIÇÃO
+      g.sfx('buzzer');
+      g.sfx('launch', g.players[playerIndex].controller.position);
+      g.sfx('laugh', null, { amount: 1 });
       g.hud.flash(playerIndex, optionIndex === -1 ? 'TEMPO ESGOTADO!' : pick(WRONG_LINES), 'bad');
       this.someoneFlying = true;
     }

@@ -97,11 +97,14 @@ export class RpsState extends State {
       g.players.forEach((p, i) => {
         if (winners.includes(i)) return;
         punishLaunch(p); // perdeu a rodada → teto
+        g.sfx('launch', p.controller.position);
         g.hud.flash(i, this.picks[i] === null ? 'NÃO ESCOLHEU! PRO TETO!' : 'PERDEU! PRO TETO!', 'bad');
       });
       text = `${winners.map((i) => g.players[i].name).join(' + ')} venceu a rodada`;
     }
     g.hud.revealRps(this.picks, this.wins, text);
+    g.sfx(winners.length ? 'buzzer' : 'oooh');
+    if (winners.length) g.sfx('laugh', null, { amount: 0.8 });
     if (winners.length) {
       // alguém vai pro teto: some com o cartão pra todo mundo assistir
       g.hud.hideRps();

@@ -11,7 +11,7 @@ const check = (ok, msg) => { console.log(`${ok ? '✔' : '✘'} ${msg}`); if (!o
 const dt = 1 / 60;
 
 /** Coloca direto num round de PvP, com a arma escolhida para cada lado. */
-function roundSetup({ botWeapon = 'pistol', humanIntent = () => blankIntent(), level = 'normal' } = {}) {
+function roundSetup({ botWeapon = 'usp', humanIntent = () => blankIntent(), level = 'normal' } = {}) {
   applyBotPreset(level);
   const g = new Game(null, null, { headless: true, bots: [1] });
   g.schemes[0] = { read: humanIntent };
@@ -50,7 +50,7 @@ function run(g, seconds, until = () => false) {
 
 // 2) Mata um alvo parado em cada dificuldade
 for (const level of ['facil', 'normal', 'dificil']) {
-  const g = roundSetup({ level, botWeapon: 'pistol' });
+  const g = roundSetup({ level, botWeapon: 'usp' });
   const t = run(g, 60, () => g.players[0].dead);
   check(t !== null, `[${level}] pistola: matou você parado em ${t?.toFixed(1)} s`);
 }
@@ -85,10 +85,9 @@ for (const level of ['facil', 'normal', 'dificil']) {
 // 5) Alvo andando de um lado pro outro → acerta às vezes, não sempre
 {
   let shots = 0, hits = 0;
-  const g = roundSetup({ botWeapon: 'pistol', humanIntent: () => ({ ...blankIntent(), moveX: Math.floor(g.time / 1.2) % 2 ? 1 : -1 }) });
+  const g = roundSetup({ botWeapon: 'usp', humanIntent: () => ({ ...blankIntent(), moveX: Math.floor(g.time / 1.2) % 2 ? 1 : -1 }) });
   g.players[0].hp = 1e9; // não morre: só contamos
-  const orig = g.projectiles.spawn.bind(g.projectiles);
-  g.projectiles.spawn = (...a) => { if (a[0] === g.players[1]) shots++; return orig(...a); };
+  g.players[1].weapon.onFire = () => { shots++; };
   g.damage.onHit = (ctx) => { if (ctx.target === g.players[0]) hits++; };
   run(g, 25);
   check(hits > 0 && hits < shots, `alvo em movimento: ${hits} acertos em ${shots} tiros (não é aimbot)`);
@@ -96,12 +95,11 @@ for (const level of ['facil', 'normal', 'dificil']) {
 
 // 6) Atrás da cobertura → não atira
 {
-  const g = roundSetup({ botWeapon: 'pistol' });
+  const g = roundSetup({ botWeapon: 'usp' });
   g.players[0].teleport({ x: -8.2, y: 0, z: 0 }, 0);
   g.players[1].teleport({ x: -3.0, y: 0, z: 0 }, 0);
   let shots = 0;
-  const orig = g.projectiles.spawn.bind(g.projectiles);
-  g.projectiles.spawn = (...a) => { shots++; return orig(...a); };
+  g.players[1].weapon.onFire = () => { shots++; };
   // mantém o bot parado no lugar
   const bot = g.schemes[1];
   const read = bot.read.bind(bot);
@@ -110,7 +108,7 @@ for (const level of ['facil', 'normal', 'dificil']) {
   check(shots === 0, `atrás da caixa o bot não atira (${shots} tiros)`);
 }
 
-// 7) Loja: compra a melhor arma que cabe no bolso + colete com o troco
+// 7) Loja: compra a melhor arma que cabe no bolso guardando o colete
 {
   applyBotPreset('normal');
   const g = new Game(null, null, { headless: true, bots: [1] });
@@ -119,7 +117,7 @@ for (const level of ['facil', 'normal', 'dificil']) {
   g.sm.change(GameStates.BUY);
   run(g, 8, () => g.sm.is(GameStates.ROUND) || g.players[1].armor > 0);
   const p = g.players[1];
-  check(p.weapon.def.id === 'smg' && p.armor === 25 && g.flow.match.money[1] === 50,
+  check(p.weapon.def.id === 'deagle' && p.armor === 25 && g.flow.match.money[1] === 100,
     `com $1200 comprou ${p.weapon.def.id} + colete ${p.armor}, sobrou $${g.flow.match.money[1]}`);
 }
 

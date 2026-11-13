@@ -17,6 +17,7 @@ export class HUD {
     this.onAnswer = null;
     this.onBuy = null;
     this.onReady = null;
+    this.onVote = null;
     this.onUserGesture = null; // clique em "pronto" → pode travar o mouse
     this._cache = new Map();
 
@@ -34,7 +35,7 @@ export class HUD {
       ${humans.map((i, slot) => `
         <section class="half half-${slot}" data-player="${i}" style="--accent:${hex(players[i].color)}">
           <div class="tag">P${i + 1} · ${esc(players[i].name)}</div>
-          <div class="crosshair"></div>
+          <div class="crosshair"><i></i><i></i><i></i><i></i><b></b></div>
           <div class="hitmark"></div>
 
           <div class="quiz hidden">
@@ -75,7 +76,7 @@ export class HUD {
             <div class="bar hp"><i></i><span></span></div>
             <div class="bar armor"><i></i><span></span></div>
           </div>
-          <div class="loadout"><div class="weapon-name"></div><div class="money"></div></div>
+          <div class="loadout"><div class="weapon-name"></div><div class="ammo"></div><div class="money"></div></div>
           <div class="flash"></div>
           <div class="strip hidden"></div>
         </section>`).join('')}
@@ -141,6 +142,7 @@ export class HUD {
       const wn = game.weaponLabel ? game.weaponLabel(p)
         : game.meleeOnly ? 'Soco' : p.weapon.def.id === 'none' ? 'Mãos vazias (pegue o patinho!)' : p.weapon.def.name;
       this._set(h.querySelector('.weapon-name'), 't', wn);
+      this._ammo(h, p, game);
       this._set(h.querySelector('.money'), 't', `$ ${m.money[p.index]}`);
     }
     this.root.querySelectorAll('.team-score').forEach((el) => {
@@ -148,6 +150,31 @@ export class HUD {
       const color = hex(this.players.find((p) => p.team === t)?.color);
       this._set(el, 'h', `<span style="color:${color}">${esc(m.teamName(t))}</span> <b>${m.roundsWon[t] ?? 0}</b>`, 'innerHTML');
     });
+  }
+
+  /** Munição (pente / reserva) e mira que abre com a dispersão real da arma. */
+  _ammo(h, p, game) {
+    const w = p.weapon;
+    const d = w.def;
+    const show = !game.weaponLabel && !game.meleeOnly && d.mag > 0 && d.type !== 'throw';
+    const el = h.querySelector('.ammo');
+    let html = '';
+    let cls = 'ammo';
+    if (show) {
+      if (w.reloading > 0) { html = `RECARREGANDO ${Math.round(w.reloadProgress * 100)}%`; cls += ' reloading'; }
+      else {
+        html = `${w.ammo}<small> / ${w.reserve === Infinity ? '∞' : w.reserve}</small>`;
+        if (w.ammo <= Math.ceil(d.mag * 0.25)) cls += ' low';
+      }
+    }
+    this._set(el, 'h', html, 'innerHTML');
+    this._set(el, 'c', cls, 'className');
+    const ch = h.querySelector('.crosshair');
+    const spread = show && !p.dead ? w.currentSpread() : 0;
+    const gap = Math.round(4 + Math.tan(spread) / Math.tan((37.5 * Math.PI) / 180) * (h.clientHeight / 2));
+    if (ch._gap !== gap) { ch._gap = gap; ch.style.setProperty('--gap', `${Math.min(gap, 140)}px`); }
+    ch.classList.toggle('ads', !!w.ads);
+    ch.classList.toggle('reloading', w.reloading > 0);
   }
 
   setPhase(text) { this._set(this.phaseEl, 't', text); }
@@ -274,8 +301,10 @@ export class HUD {
   }
 
   // ---------------------------------------------------------------- loja
-  showShop(match, items) {
-    this.shopItems = items;
+  /** @param tabs [{id, name, items:[shopItem]}] */
+  showShop(match, tabs) {
+    this.shopTabs = tabs;
+    this.shopItems = tabs.flatMap((t) => t.items);
     for (const h of this.halves) {
       const pi = Number(h.dataset.player);
       const shop = h.querySelector('.shop');
@@ -286,23 +315,39 @@ export class HUD {
       const rest = h.querySelector('.shop-restricted');
       rest.classList.toggle('hidden', !r);
       rest.textContent = r === 'duck'
-        ? 'Você errou TODAS no quiz: só o patinho de borracha. Sem compras nesta etapa.'
-        : r === 'weak' ? 'Você perdeu o quiz: só o estilingue. Sem compras nesta etapa.' : '';
-      const list = h.querySelector('.shop-items');
-      list.innerHTML = items.map((it, n) => `
-        <button tabindex="-1" data-item="${it.id}" data-p="${pi}">
-          <kbd>${n + 1}</kbd>
-          <span class="it-name">${esc(it.name)}</span>
-          <span class="it-stats">${it.kind === 'weapon'
-            ? `${it.damage}${it.pellets > 1 ? '×' + it.pellets : ''} dano · ${(1 / it.cooldown).toFixed(1)}/s${it.ragdoll ? ' · derruba' : ''}`
-            : `+${it.points} colete`}</span>
-          <span class="it-price">$${it.price}</span>
-        </button>`).join('');
-      list.querySelectorAll('button').forEach((b) => {
+        ? 'Você zerou o minigame: só o patinho de borracha. Elimine alguém para liberar a loja!'
+        : r === 'weak' ? 'Você perdeu o minigame: só o estilingue. Elimine alguém para liberar a loja!' : '';
+      const tabBar = this.touch ? '' : '<kbd>Q</kbd>';
+      h.querySelector('.shop-items').innerHTML = `
+        <div class="shop-tabs">${tabBar}${tabs.map((t, n) => `<button tabindex="-1" data-tab="${n}" data-p="${pi}">${esc(t.name)}</button>`).join('')}${this.touch ? '' : '<kbd>E</kbd>'}</div>
+        ${tabs.map((t, n) => `<div class="shop-page" data-page="${n}">${t.items.map((it, k) => `
+          <button tabindex="-1" data-item="${it.id}" data-p="${pi}">
+            <kbd>${k + 1}</kbd>
+            <span class="it-name">${esc(it.name)}</span>
+            <span class="it-stats">${this._itemStats(it)}</span>
+            <span class="it-price">$${it.price}</span>
+          </button>`).join('')}</div>`).join('')}`;
+      h.querySelectorAll('.shop-items button').forEach((b) => {
         b.addEventListener('mousedown', (e) => e.preventDefault());
-        b.addEventListener('click', () => this.onBuy?.(Number(b.dataset.p), b.dataset.item));
+        if (b.dataset.tab) b.addEventListener('click', () => this.onTab?.(Number(b.dataset.p), Number(b.dataset.tab)));
+        else b.addEventListener('click', () => this.onBuy?.(Number(b.dataset.p), b.dataset.item));
       });
+      this.setShopTab(pi, 0);
     }
+  }
+
+  _itemStats(it) {
+    if (it.kind === 'armor') return `+${it.points} colete`;
+    if (it.explosive) return `explosivo ${it.explosive.damage} · raio ${it.explosive.radius} m · ${it.mag}+${it.reserve}`;
+    const dmg = `${it.damage}${it.pellets > 1 ? '×' + it.pellets : ''}`;
+    return `${dmg} dano · ${it.rpm} rpm · ${it.mag}/${it.reserve === Infinity ? '∞' : it.reserve}${it.auto ? ' · auto' : ''}`;
+  }
+
+  setShopTab(pi, tab) {
+    const h = this.halfOf.get(pi);
+    if (!h) return;
+    h.querySelectorAll('.shop-tabs button').forEach((b) => b.classList.toggle('on', Number(b.dataset.tab) === tab));
+    h.querySelectorAll('.shop-page').forEach((pg) => pg.classList.toggle('hidden', Number(pg.dataset.page) !== tab));
   }
 
   updateShop(match, timeLeft, readySet) {
@@ -313,7 +358,7 @@ export class HUD {
       this._set(h.querySelector('.shop-money'), 't', `$ ${money}`);
       h.querySelector('.shop-ready').classList.toggle('done', readySet.has(pi));
       const locked = !match.canShop(pi);
-      h.querySelectorAll('.shop-items button').forEach((b) => {
+      h.querySelectorAll('.shop-items button[data-item]').forEach((b) => {
         const it = this.shopItems.find((x) => x.id === b.dataset.item);
         const p = this.players[pi];
         const owned = it.kind === 'weapon' ? p.weapon.def.id === it.id : p.armor >= it.points;
@@ -384,9 +429,38 @@ export class HUD {
   showMatchSummary(match, title) {
     const rows = this.players.map((p, i) => `<tr><td style="color:${hex(p.color)}">${esc(p.name)}${p.isBot ? ' (bot)' : ''}</td>
       <td>${match.roundsWon[p.team] ?? 0}</td><td>${match.kills[i]}</td><td>${match.deaths[i]}</td><td>${match.quizCorrect[i]}</td><td>$${match.money[i]}</td></tr>`).join('');
+    const buttons = this.humans.map((i) => `<div class="vote-row" data-p="${i}">
+        ${this.humans.length > 1 ? `<b style="color:${hex(this.players[i].color)}">${esc(this.players[i].name)}</b>` : ''}
+        <button tabindex="-1" class="vote-btn rematch" data-p="${i}" data-v="rematch">PEDIR REVANCHE</button>
+        <button tabindex="-1" class="vote-btn leave" data-p="${i}" data-v="leave">SAIR DA SALA</button>
+      </div>`).join('');
     this._banner(`<h2>${esc(title)}</h2>
       <table><tr><th></th><th>Rounds</th><th>Kills</th><th>Mortes</th><th>Quiz</th><th>Dinheiro</th></tr>${rows}</table>
-      <p><small>Nova partida em instantes…</small></p>`);
+      <div class="votes"></div>${buttons}`);
+    this.banner.classList.add('interactive');
+    this.banner.querySelectorAll('.vote-btn').forEach((btn) => {
+      btn.addEventListener('mousedown', (e) => e.preventDefault());
+      btn.addEventListener('click', () => this.onVote?.(Number(btn.dataset.p), btn.dataset.v));
+    });
+  }
+
+  /** Mostra quem já pediu/aceitou revanche. O botão vira "ACEITAR" quando o outro pediu. */
+  updateVotes(votes) {
+    const el = this.banner.querySelector('.votes');
+    if (!el) return;
+    el.innerHTML = this.players.map((p, i) => {
+      const v = votes[i];
+      const txt = v === 'rematch' ? 'quer revanche ✔' : v === 'leave' ? 'saiu da sala' : 'decidindo…';
+      return `<span class="vote ${v ?? ''}" style="color:${hex(p.color)}">${esc(p.name)}${p.isBot ? ' (bot)' : ''}: <b>${txt}</b></span>`;
+    }).join('');
+    const someoneAsked = votes.some((v) => v === 'rematch');
+    this.banner.querySelectorAll('.vote-row').forEach((row) => {
+      const i = Number(row.dataset.p);
+      const btn = row.querySelector('.rematch');
+      btn.textContent = votes[i] === 'rematch' ? 'ESPERANDO O OUTRO…' : someoneAsked ? 'ACEITAR REVANCHE' : 'PEDIR REVANCHE';
+      btn.disabled = votes[i] !== null;
+      row.querySelector('.leave').disabled = votes[i] === 'leave';
+    });
   }
 
   _scoreLine(match) {
@@ -400,6 +474,7 @@ export class HUD {
 
   hideBanner() {
     this.banner.classList.add('hidden');
+    this.banner.classList.remove('interactive');
   }
 }
 

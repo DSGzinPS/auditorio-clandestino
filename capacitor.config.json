@@ -1,8 +1,13 @@
 {
   "appId": "com.davicabral.auditorioclandestino",
-  "appName": "Auditório Clandestino",
+  "appName": "Audit\u00f3rio Clandestino",
   "webDir": "dist",
   "android": {
-    "backgroundColor": "#15121c"
+    "backgroundColor": "#15121c",
+    "allowMixedContent": true
+  },
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
   }
 }

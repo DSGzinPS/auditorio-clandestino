@@ -88,10 +88,8 @@ export class Grenades {
       const len = Math.hypot(dx, dz) || 1;
       shotKnockback(p, { x: dx / len, y: 0, z: dz / len }, cfg.knock * (0.35 + strength));
     }
-    const fx = new THREE.Mesh(this.geo, this.flashMat.clone());
-    fx.position.set(c.x, c.y, c.z);
-    this.game.scene.add(fx);
-    this.effects.push({ mesh: fx, t: 0 });
+    this.game.sfx?.('explosion', c, { small: true });
+    this.game.effects?.explosion(c, R * 0.7); // clarão (também vai pela rede)
   }
 
   _remove(g) {
