@@ -133,6 +133,27 @@ function playMatch(label, rigging, maxSeconds = 3000) {
   check(b.dead && m.canShop(0), 'matou com o castigo → loja liberada no próximo round');
 }
 
+// ---------------------------------------------------------------- castigo só no 1º round + bônus de derrota
+{
+  console.log('\n=== Castigo dura 1 round · bônus de derrota ===');
+  const g = new Game(null, null, { headless: true, bots: [0, 1] });
+  g.flow.skipToPvp();
+  const m = g.flow.match;
+  m.restrictions = [null, 'weak'];
+  const money0 = m.money[1];
+  g.flow.finishRound(0); // P1 (time 0) venceu o 1º round
+  check(m.money[1] - money0 === CONFIG.economy.roundLoss, `perdeu o round: +$${m.money[1] - money0} de bônus de derrota`);
+  g.flow.afterRoundEnd();
+  check(m.restrictions[1] === null && m.canShop(1), 'castigo acabou depois do 1º round: loja liberada');
+  const money1 = m.money[1];
+  g.flow.finishRound(0);
+  check(m.money[1] - money1 === CONFIG.economy.roundLoss + CONFIG.economy.roundLossStep, `2ª derrota seguida: +$${m.money[1] - money1}`);
+  g.flow.afterRoundEnd();
+  const money2 = m.money[0];
+  g.flow.finishRound(1); // virou: quem vinha ganhando agora perde
+  check(m.lossStreak[1] === 0 && m.money[0] - money2 === CONFIG.economy.roundLoss, 'venceu → sequência zera; o outro recebe o bônus base');
+}
+
 // ---------------------------------------------------------------- fim de partida: revanche / sair
 {
   console.log('\n=== Fim de partida ===');

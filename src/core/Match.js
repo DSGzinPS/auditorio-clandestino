@@ -19,6 +19,7 @@ export class Match {
     this.time = 0;
     this.roundInStage = 0;
     this.totalRounds = 0;
+    this.lossStreak = Object.fromEntries(this.teams.map((t) => [t, 0]));
   }
 
   // ---------------------------------------------------------------- dinheiro

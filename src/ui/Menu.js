@@ -105,7 +105,7 @@ export class Menu {
             <p>Quiz: <b>1/2</b> · Pedra/papel/tesoura: <b>1/2/3</b> · Loja: <b>Q/E</b> troca de aba, <b>1–4</b> compra, <b>Enter</b> pronto</p>`}
             <p><b>Armas de verdade:</b> bala instantânea, pente e recarga, recuo que sobe a mira (puxe pra baixo), mira que abre andando/pulando e fecha agachado ou mirando. Headshot dá muito mais dano. Colete absorve metade do dano.</p>
             <p>Errou no quiz ou perdeu no pedra-papel-tesoura: <b>vai pro teto</b>. Quem fizer menos pontos num minigame
-              joga o PvP seguinte com o <b>patinho</b> (fez 0) ou o <b>estilingue</b>, sem loja — mas se <b>eliminar alguém</b>, a loja libera no próximo round. Vence quem ganhar mais rounds.</p>
+              joga o PvP seguinte com o <b>patinho</b> (fez 0) ou o <b>estilingue</b>, sem loja, <b>só no 1º round</b> (eliminou alguém? continua liberado). Quem perde um round ganha bônus de derrota pra se recuperar. Vence quem ganhar mais rounds.</p>
             <p><small>Modelos das armas: Ultimate Gun Pack, de Quaternius (CC0). Sons sintetizados no próprio jogo.</small></p>
             <p>Basquete: cada um tem a sua bola-bomba · ATIRAR arremessa (mire pra cima pra cesta) · no chão ou em alguém ela EXPLODE e arremessa · SOCO empurra · ninguém morre.</p>
           </div>

@@ -110,6 +110,7 @@ export const CONFIG = {
       { type: 'basketball', bestOf: 3, map: 'quadra', label: 'BASQUETE COM BOLA-BOMBA' },
       { type: 'pvp', rounds: 4, map: 'rua', label: 'PVP FINAL NA RUA' },
     ],
+    punishRounds: 1,         // castigo do minigame (patinho/estilingue, sem loja) dura N rounds do PvP seguinte
     buyTime: 15,             // segundos de loja antes de cada round
     roundTimeLimit: 90,      // estourou: vence o time com mais HP somado
     roundEndTime: 5,
@@ -124,6 +125,10 @@ export const CONFIG = {
     rpsWin: 400,             // por rodada ganha no pedra-papel-tesoura
     basketPoints: 500,       // por cesta (para quem arremessou)
     roundWin: 800,           // para cada jogador do time que venceu o round
+    // quem perde o round também ganha (igual CS): dá pra se recuperar em vez de virar bola de neve
+    roundLoss: 600,          // 1ª derrota seguida
+    roundLossStep: 300,      // +300 a cada derrota seguida
+    roundLossMax: 1500,
     killReward: 400,         // base por kill, multiplicada abaixo
     headshotMult: 2,
     meleeMult: 3,            // kill no soco

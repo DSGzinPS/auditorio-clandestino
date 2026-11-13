@@ -69,6 +69,7 @@ export class MatchFlow {
     if (STATE_FOR[s.type]) return g.sm.change(STATE_FOR[s.type], { stage: s });
     if (s.type === 'pvp') {
       this.match.roundInStage = 0;
+      this.match.teams.forEach((t) => { this.match.lossStreak[t] = 0; });
       this.match.resetLoadouts();
       g.players.forEach((p) => { p.dead = false; });
       return g.sm.change(GameStates.BUY);
@@ -113,9 +114,18 @@ export class MatchFlow {
   finishRound(winnerTeam) {
     const m = this.match;
     m.totalRounds++;
+    const e = CONFIG.economy;
     if (winnerTeam !== null) {
       m.roundsWon[winnerTeam]++;
-      m.players.forEach((p, i) => { if (p.team === winnerTeam) m.addMoney(i, CONFIG.economy.roundWin, 'Venceu o round'); });
+      m.lossStreak[winnerTeam] = 0;
+      m.players.forEach((p, i) => { if (p.team === winnerTeam) m.addMoney(i, e.roundWin, 'Venceu o round'); });
+    }
+    // bônus de derrota (cresce a cada round perdido em sequência)
+    for (const t of m.teams) {
+      if (t === winnerTeam) continue;
+      const streak = m.lossStreak[t]++;
+      const bonus = Math.min(e.roundLossMax, e.roundLoss + streak * e.roundLossStep);
+      m.players.forEach((p, i) => { if (p.team === t) m.addMoney(i, bonus, streak ? `Bônus de derrota (${streak + 1}ª seguida)` : 'Bônus de derrota'); });
     }
     this.game.sm.change(GameStates.ROUND_END, { winnerTeam });
   }
@@ -123,6 +133,11 @@ export class MatchFlow {
   afterRoundEnd() {
     const m = this.match;
     m.roundInStage++;
+    // o castigo do minigame dura só os primeiros rounds; depois a loja abre pra todo mundo
+    if (m.roundInStage >= CONFIG.match.punishRounds && m.restrictions.some((r) => r)) {
+      m.restrictions.forEach((r, i) => { if (r) this.game.hud.flash?.(i, 'CASTIGO ACABOU · LOJA LIBERADA', 'good'); });
+      m.restrictions = m.players.map(() => null);
+    }
     if (m.roundInStage < this.stage.rounds) return this.game.sm.change(GameStates.BUY);
     m.restrictions = m.players.map(() => null); // a punição vale só para esta etapa de PvP
     this.nextStage();

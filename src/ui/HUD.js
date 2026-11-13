@@ -315,8 +315,8 @@ export class HUD {
       const rest = h.querySelector('.shop-restricted');
       rest.classList.toggle('hidden', !r);
       rest.textContent = r === 'duck'
-        ? 'Você zerou o minigame: só o patinho de borracha. Elimine alguém para liberar a loja!'
-        : r === 'weak' ? 'Você perdeu o minigame: só o estilingue. Elimine alguém para liberar a loja!' : '';
+        ? 'Você zerou o minigame: só o patinho neste round. Elimine alguém e a loja já abre no próximo!'
+        : r === 'weak' ? 'Você perdeu o minigame: só o estilingue neste round. Elimine alguém e a loja já abre no próximo!' : '';
       const tabBar = this.touch ? '' : '<kbd>Q</kbd>';
       h.querySelector('.shop-items').innerHTML = `
         <div class="shop-tabs">${tabBar}${tabs.map((t, n) => `<button tabindex="-1" data-tab="${n}" data-p="${pi}">${esc(t.name)}</button>`).join('')}${this.touch ? '' : '<kbd>E</kbd>'}</div>

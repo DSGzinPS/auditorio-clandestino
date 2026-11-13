@@ -57,7 +57,8 @@ O APK é gerado no GitHub (`.github/workflows/android-apk.yml`): a cada push na 
 | 5 | **Basquete com bola-bomba** (melhor de 3) | **Quadra** | +$500 por cesta | ninguém morre: no chão ou num jogador a bola explode e arremessa; quem voa levanta com outra bola |
 | 6 | **PvP final**, 4 rounds | **Rua** ("sapo atravessando"): carros só derrubam, quem mata é tiro | idem | — |
 
-- **Cada minigame (1, 3 e 5) pune quem fez menos pontos no PvP seguinte:** com 0 pontos fica com o **patinho**, com 1 ou mais fica com o **estilingue**, sem loja. **Se o castigado eliminar alguém, a loja libera no round seguinte** (a punição que sobra é ter menos dinheiro). Se todos empatarem, **"saem na mão"**: desempate só no soco.
+- **Cada minigame (1, 3 e 5) pune quem fez menos pontos no PvP seguinte:** com 0 pontos fica com o **patinho**, com 1 ou mais fica com o **estilingue**, sem loja — **só no 1º round** (`CONFIG.match.punishRounds`). Do 2º round em diante todo mundo compra. A punição que sobra é ter menos dinheiro.
+- **Bônus de derrota (estilo CS):** quem perde o round ganha $600, +$300 a cada derrota seguida (máx. $1500). Evita a bola de neve de quem já começou atrás. Se todos empatarem, **"saem na mão"**: desempate só no soco.
 - **Vencedor da partida:** o time com mais rounds ganhos nos 3 PvPs (12 rounds).
 - **Fim de partida:** não recomeça sozinho. Cada um escolhe **PEDIR REVANCHE** ou **SAIR DA SALA**. A revanche só começa quando **todos aceitam**; se alguém sair, volta pro menu. (O bot sempre topa.)
 - **Basquete:** cada jogador tem a própria bola-bomba (outra aparece na mão 0,9 s depois de arremessar). Na cesta é ponto. No chão ou num jogador ela explode e arremessa quem estiver perto, sem dano. SOCO empurra. A cesta do outro lado é a sua.
