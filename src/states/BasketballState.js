@@ -52,7 +52,9 @@ export class BasketballState extends State {
     if (this.finished || this.pause > 0 || this._kickoffLater !== undefined) return;
     const g = this.context;
     const m = g.flow.match;
-    const team = hoop.forTeam;
+    // cada um por si (3–4 jogadores): qualquer cesta vale pra quem arremessou
+    const ffa = g.teamMode === 'ffa' && g.players.length > 2;
+    const team = ffa && thrower ? thrower.team : hoop.forTeam;
     this.points[team]++;
     const own = thrower && thrower.team !== team;
     if (thrower && !own) m.addMoney(thrower.index, CONFIG.economy.basketPoints, 'Cesta no basquete');

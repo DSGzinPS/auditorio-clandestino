@@ -246,6 +246,12 @@ export class AudioSystem {
     this._noise(out, t, 0.18, { type: 'bandpass', freq: 500, q: 1.5, gain: 0.7, attack: 0.04, sweepTo: 1500 });
   }
 
+  _s_grab(t, at) { // agarrou: "tum" + pano
+    const out = this._out(at, { gain: 0.7, ref: 3 });
+    this._tone(out, t, 0.12, { freq: 120, to: 60, gain: 0.7 });
+    this._noise(out, t, 0.2, { type: 'bandpass', freq: 1400, q: 1.2, gain: 0.5, attack: 0.02 });
+  }
+
   _s_punch(t, at) {
     const out = this._out(at, { gain: 0.8, ref: 3 });
     this._tone(out, t, 0.14, { freq: 160, to: 50, gain: 0.9 });

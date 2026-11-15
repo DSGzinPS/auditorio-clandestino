@@ -1,6 +1,7 @@
 // Menu principal, pausa, configurações e "como jogar".
 
 import { CONFIG } from '../config.js';
+import { LOOKS, LOOK_IDS } from '../entities/looks.js';
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -23,14 +24,23 @@ export class Menu {
       <div id="menu" class="menu hidden">
         <div class="menu-card" data-panel="main">
           <h1>PROGRAMA DE AUDITÓRIO <span>CLANDESTINO</span></h1>
-          <p class="menu-sub">greybox · você contra o bot</p>
-          <button class="menu-big" data-act="play">JOGAR CONTRA O BOT</button>
+          <p class="menu-sub">greybox · até 4 jogadores</p>
+          <button class="menu-big" data-act="play">JOGAR CONTRA BOTS</button>
           <button class="menu-big net" data-act="net">JOGAR EM REDE (LAN)</button>
-          <div class="menu-row"><label>Bot</label>
+          <div class="menu-row"><label>Personagem</label>
+            <div class="seg seg-wrap" data-set="look">${LOOK_IDS.map((id) => `<button data-v="${id}">${esc(LOOKS[id].label)}</button>`).join('')}</div>
+          </div>
+          <div class="menu-row"><label>Seu nome</label><input class="menu-name" maxlength="12" placeholder="nome do personagem" autocomplete="off" spellcheck="false"></div>
+          <div class="menu-row"><label>Bots</label>
+            <div class="seg" data-set="bots"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button></div>
             <div class="seg" data-set="difficulty">
               <button data-v="facil">Fácil</button><button data-v="normal">Normal</button><button data-v="dificil">Difícil</button>
             </div>
           </div>
+          <div class="menu-row"><label>Modo</label>
+            <div class="seg" data-set="teamMode"><button data-v="ffa">Cada um por si</button><button data-v="teams">2 contra 2</button></div>
+          </div>
+          <p class="menu-note">2 contra 2 precisa de 4 jogadores (você + 3 bots, ou 4 na rede).</p>
           <div class="menu-row"><label>Começar em</label><select data-set="startStage">${stages}</select></div>
           <div class="menu-grid">
             <button data-act="settings">CONFIGURAÇÕES</button>
@@ -53,7 +63,7 @@ export class Menu {
 
         <div class="menu-card hidden" data-panel="net">
           <h2>JOGAR EM REDE</h2>
-          <p class="menu-sub">PC ↔ celular ou celular ↔ celular, no mesmo Wi-Fi. Um cria a sala e passa o código; o outro entra.</p>
+          <p class="menu-sub">Até 4 aparelhos (PC ou celular), no mesmo Wi-Fi. Um cria a sala e passa o código; os outros entram.</p>
           <div class="net-lobby">
             <button class="menu-big" data-act="net-host">CRIAR SALA</button>
             <div class="net-join">
@@ -63,7 +73,12 @@ export class Menu {
           </div>
           <div class="net-room hidden">
             <div class="net-code-big"></div>
-            <p>Passe esse código pro outro aparelho. Esperando ele entrar…</p>
+            <p class="net-hint"></p>
+            <button class="menu-big net-start hidden" data-act="net-start" disabled>COMEÇAR</button>
+            <div class="menu-row net-mode-row hidden"><label>Modo</label>
+              <div class="seg" data-set="teamMode"><button data-v="ffa">Cada um por si</button><button data-v="teams">2 contra 2</button></div>
+            </div>
+            <ul class="net-members"></ul>
           </div>
           <div class="net-status"></div>
           <details class="net-adv">
@@ -98,9 +113,9 @@ export class Menu {
           <h2>COMO JOGAR</h2>
           <div class="menu-help">${touch ? `
             <p><b>Andar:</b> joystick à esquerda (empurre até o fim pra correr) · <b>Mirar:</b> arraste à direita</p>
-            <p><b>ATIRAR</b> (dá pra arrastar e mirar segurando) · <b>SOCO</b> · <b>PULAR</b> · <b>RECARREGAR</b> · <b>MIRA</b>, <b>AGACHAR</b> e <b>CORRER</b> ligam/desligam</p>
+            <p><b>ATIRAR</b> (dá pra arrastar e mirar segurando) · <b>SOCO</b> · <b>PULAR</b> · <b>RECARREGAR</b> · <b>AGARRAR</b> (depois ATIRAR arremessa) · <b>MIRA</b>, <b>AGACHAR</b> e <b>CORRER</b> ligam/desligam</p>
             <p>Quiz, pedra-papel-tesoura e loja: toque nas opções · ⏸ pausa</p>` : `
-            <p><b>WASD</b> anda · <b>mouse</b> mira (clique na tela pra travar) · <b>clique</b> atira · <b>botão direito / Z</b> mira (zoom) · <b>R</b> recarrega · <b>V</b> / botão do meio soca</p>
+            <p><b>WASD</b> anda · <b>mouse</b> mira (clique na tela pra travar) · <b>clique</b> atira · <b>botão direito / Z</b> mira (zoom) · <b>R</b> recarrega · <b>V</b> / botão do meio soca · <b>E</b> agarra (clique arremessa, E solta)</p>
             <p><b>Espaço</b> pula · <b>Shift</b> corre · <b>C</b> agacha · <b>ESC / P</b> pausa</p>
             <p>Quiz: <b>1/2</b> · Pedra/papel/tesoura: <b>1/2/3</b> · Loja: <b>Q/E</b> troca de aba, <b>1–4</b> compra, <b>Enter</b> pronto</p>`}
             <p><b>Armas de verdade:</b> bala instantânea, pente e recarga, recuo que sobe a mira (puxe pra baixo), mira que abre andando/pulando e fecha agachado ou mirando. Headshot dá muito mais dano. Colete absorve metade do dano.</p>
@@ -121,7 +136,16 @@ export class Menu {
       status: this.root.querySelector('.net-status'),
       code: this.root.querySelector('.net-code'),
       server: this.root.querySelector('.net-server'),
+      hint: this.root.querySelector('.net-hint'),
+      members: this.root.querySelector('.net-members'),
+      modeRow: this.root.querySelector('.net-mode-row'),
+      start: this.root.querySelector('.net-start'),
     };
+    game.onLobby = (members, kind, extra) => this._lobby(members, kind, extra);
+    const nameEl = this.root.querySelector('.menu-name');
+    nameEl.value = settings.data.playerName ?? '';
+    nameEl.addEventListener('input', () => this.settings.set('playerName', nameEl.value.trim().slice(0, 12)));
+    nameEl.addEventListener('keydown', (e) => e.stopPropagation());
     this.netEls.server.value = settings.data.lanServer ?? '';
     this.netEls.server.addEventListener('change', () => this.settings.set('lanServer', this.netEls.server.value.trim()));
     this.netEls.code.addEventListener('input', () => { this.netEls.code.value = this.netEls.code.value.toUpperCase(); });
@@ -175,6 +199,7 @@ export class Menu {
     else if (act === 'net') { this._netReset(); this.open('net'); }
     else if (act === 'net-host') this._netHost();
     else if (act === 'net-join') this._netJoin();
+    else if (act === 'net-start') { if (!g.startNetMatch()) this._netMsg('Espere pelo menos mais 1 jogador entrar', 'bad'); }
     else if (act === 'net-cancel') { g.cancelRoom(); this._netReset(); this.back(); }
     else if (act === 'back') this.back();
     else if (act === 'hud') {
@@ -205,14 +230,37 @@ export class Menu {
     this.netEls.status.className = `net-status ${kind}`;
   }
 
+  /** Sala de espera: quem já entrou, e o botão COMEÇAR pro host. */
+  _lobby(members, kind, extra) {
+    const e = this.netEls;
+    if (kind === 'closed') {
+      this._netReset();
+      this._netMsg(extra ?? 'A sala fechou', 'bad');
+      return;
+    }
+    e.lobby.classList.add('hidden');
+    e.room.classList.remove('hidden');
+    const host = kind === 'host';
+    if (!host && extra) e.big.textContent = extra;
+    e.members.innerHTML = members.map((m, i) => {
+      const look = LOOKS[m.look];
+      const name = m.name || look?.name || 'entrando…';
+      return `<li><b>${i + 1}.</b> ${esc(name)} <small>${look ? esc(look.label) : '…'}${m.host ? ' · host' : ''}</small></li>`;
+    }).join('');
+    e.hint.textContent = host
+      ? (members.length < 2 ? 'Passe o código. Esperando a galera entrar (até 4)…' : `${members.length} na sala. Aperte COMEÇAR quando todo mundo entrar.`)
+      : 'Você entrou! Esperando o host começar…';
+    e.start.classList.toggle('hidden', !host);
+    e.start.disabled = members.length < 2;
+    e.modeRow.classList.toggle('hidden', !host || members.length !== 4);
+  }
+
   async _netHost() {
     const e = this.netEls;
     this.settings.set('lanServer', e.server.value.trim());
     this._netMsg('Criando sala…');
     try {
       const code = await this.game.hostRoom();
-      e.lobby.classList.add('hidden');
-      e.room.classList.remove('hidden');
       e.big.textContent = code;
       this._netMsg('');
     } catch (err) {
@@ -228,6 +276,7 @@ export class Menu {
     this._netMsg('Conectando…');
     try {
       await this.game.joinRoom(code);
+      this._netMsg('');
     } catch (err) {
       this._netMsg(netError(err), 'bad');
     }

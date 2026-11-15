@@ -18,6 +18,7 @@ export class TouchControls {
     this.jump = false;
     this.adsOn = false;    // MIRA, AGACHAR e CORRER são liga/desliga
     this.reload = false;
+    this.grab = false;
     this.crouchOn = false;
     this.sprintOn = false;
     this.stickSprint = false; // joystick no talo também corre
@@ -35,6 +36,7 @@ export class TouchControls {
         <div class="touch-btn touch-sprint">CORRER</div>
         <div class="touch-btn touch-ads">MIRA</div>
         <div class="touch-btn touch-reload">RECARREGAR</div>
+        <div class="touch-btn touch-grab">AGARRAR</div>
       </div>`);
     this.layer = parent.querySelector('.touch-layer');
     this.base = this.layer.querySelector('.stick-base');
@@ -49,6 +51,7 @@ export class TouchControls {
     this._toggle(this.layer.querySelector('.touch-sprint'), 'sprintOn', 'crouchOn');
     this._toggle(this.layer.querySelector('.touch-ads'), 'adsOn', 'sprintOn');
     this._button(this.layer.querySelector('.touch-reload'), 'reload', false);
+    this._button(this.layer.querySelector('.touch-grab'), 'grab', false);
   }
 
   /** Elementos que o editor de HUD pode mover/redimensionar. */
@@ -57,7 +60,7 @@ export class TouchControls {
     return [
       ['fire', q('.touch-fire'), 'Atirar'], ['melee', q('.touch-melee'), 'Soco'], ['jump', q('.touch-jump'), 'Pular'],
       ['crouch', q('.touch-crouch'), 'Agachar'], ['sprint', q('.touch-sprint'), 'Correr'],
-      ['ads', q('.touch-ads'), 'Mira'], ['reload', q('.touch-reload'), 'Recarregar'],
+      ['ads', q('.touch-ads'), 'Mira'], ['reload', q('.touch-reload'), 'Recarregar'], ['grab', q('.touch-grab'), 'Agarrar'],
     ];
   }
 
@@ -92,6 +95,7 @@ export class TouchControls {
       jump: this.jump || this.jumpPressed,
       ads: this.adsOn,
       reload: this.reload || this.reloadPressed,
+      grab: !!this.grabPressed,
       crouch: this.crouchOn,
       sprint: this.sprintOn || this.stickSprint,
     };
@@ -101,6 +105,7 @@ export class TouchControls {
     this.meleePressed = false;
     this.jumpPressed = false;
     this.reloadPressed = false;
+    this.grabPressed = false;
     return r;
   }
 
@@ -110,6 +115,7 @@ export class TouchControls {
     this.firePressed = this.meleePressed = this.jumpPressed = false;
     this.crouchOn = this.sprintOn = this.stickSprint = this.adsOn = false;
     this.reload = this.reloadPressed = false;
+    this.grab = this.grabPressed = false;
     this._syncToggles();
     this.base.classList.remove('on');
   }

@@ -22,6 +22,9 @@ export class Settings {
       crowd: 0.6,           // plateia
       lanServer: '',        // rede: IP do servidor local (vazio = servidor público PeerJS)
       playerName: '',
+      look: 'radio',        // personagem (skin)
+      bots: '1',            // contra bots: 1 a 3
+      teamMode: 'ffa',      // 'ffa' cada um por si · 'teams' 2 contra 2 (com 4)
     };
     try {
       const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null');

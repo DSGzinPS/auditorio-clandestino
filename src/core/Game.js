@@ -26,6 +26,7 @@ import { RoundEndState, MatchEndState } from '../states/EndStates.js';
 import { RpsState } from '../states/RpsState.js';
 import { BasketballState } from '../states/BasketballState.js';
 import { Grenades } from '../systems/Grenades.js';
+import { GrabSystem } from '../systems/Grab.js';
 import { shotKnockback } from '../physics/ChaosForces.js';
 import { PlayerCamera } from '../camera/PlayerCamera.js';
 import { SplitScreenRenderer } from '../camera/SplitScreenRenderer.js';
@@ -39,14 +40,19 @@ import { LayoutEditor } from '../ui/LayoutEditor.js';
 import { NetHost } from '../net/NetHost.js';
 import { NetGuest } from '../net/NetGuest.js';
 import { NetSession } from '../net/NetSession.js';
+import { LOOKS, loadAvatarTextures } from '../entities/looks.js';
 
-const PLAYER_DEFS = [
+// 4 vagas por sala. Cada vaga tem uma cor fixa (HUD) e uma skin padrão.
+export const SLOT_DEFS = [
   { name: 'RÁDIO', color: 0xff8a3d, variant: 'radio' },
   { name: 'FONE', color: 0x3dd6c6, variant: 'fone' },
+  { name: 'TV', color: 0xa86bff, variant: 'tv' },
+  { name: 'MICROFONE', color: 0xffd23f, variant: 'mic' },
 ];
+export const MAX_PLAYERS = SLOT_DEFS.length;
 
 const HELP = {
-  vsBot: 'WASD + mouse · clique atira · botão direito/Z mira · R recarrega · V soca · loja: Q/E aba, 1–4 compra, Enter pronto &nbsp;|&nbsp; G: painel',
+  vsBot: 'WASD + mouse · clique atira · direito/Z mira · R recarrega · V soca · E agarra (clique arremessa) · loja: Q/E aba, 1–4 compra, Enter pronto &nbsp;|&nbsp; G: painel',
   splitscreen: 'P1: WASD + mouse · clique atira · direito/V soca · 1/2 responde · 1–6 compra &nbsp;|&nbsp; '
     + 'P2: setas + IJKL · Enter atira · / mira · - recarrega · Shift dir. soca · 9/0 responde · compra clicando &nbsp;|&nbsp; G: painel',
 };
@@ -58,8 +64,10 @@ export class Game {
   /**
    * @param opts.headless  sem render/DOM (testes)
    * @param opts.bots      índices controlados por bot (headless: [0,1] = bot × bot)
+   * @param opts.count     jogadores na partida (2–4)
+   * @param opts.teamMode  'ffa' (cada um por si) · 'teams' (2v2: vagas 0+2 × 1+3)
    */
-  constructor(container, hudRoot, { headless = false, bots = null } = {}) {
+  constructor(container, hudRoot, { headless = false, bots = null, count = 2, teamMode = 'ffa' } = {}) {
     this.headless = headless;
     this.mode = CONFIG.game.mode === 'splitscreen' ? 'splitscreen' : 'vsBot';
     const botSet = new Set(bots ?? (this.mode === 'vsBot' ? [1] : []));
@@ -81,13 +89,15 @@ export class Game {
     this.projectiles.onExplode = (at, def, owner) => this.ballistics.explode(at, def, owner);
     this.sfx = () => {}; // trocado pelo AudioSystem no navegador
     this.grenades = new Grenades(this);
+    this.grab = new GrabSystem(this);
     this.basketball = null;  // criado pelo BasketballState
     this.weaponLabel = null; // estados podem trocar o texto da arma no HUD
 
-    // Jogadores (o bot usa o MESMO Character que você)
-    this.players = PLAYER_DEFS.map((def, index) => {
+    // Jogadores (o bot usa o MESMO Character que você). As 4 vagas sempre existem;
+    // applyRoster() liga só as que estão em jogo.
+    this.allPlayers = SLOT_DEFS.map((def, index) => {
       const p = new Character({ ...def, index, scene: this.scene, physics: this.physics, arena: this.arena });
-      p.spawn = this.arena.spawns[index];
+      p.spawn = this.arena.spawnFor(index);
       p.weapon = new Weapon(p, this.projectiles);
       p.weapon.ballistics = this.ballistics;
       p.weapon.sfx = (name, o = {}) => this.sfx(name, p.centerPosition(new THREE.Vector3()), { ...o, who: p.index });
@@ -95,6 +105,8 @@ export class Game {
       p.teleport(p.spawn.position, p.spawn.yaw);
       return p;
     });
+    this.players = this.allPlayers;
+    this._setRoster({ count, teamMode });
     this.humans = this.players.filter((p) => !p.isBot).map((p) => p.index);
     if (headless) this.humans = [];
 
@@ -136,7 +148,8 @@ export class Game {
     };
     this.isTouch = isTouchDevice();
     document.body.classList.toggle('touch', this.isTouch);
-    this.views = this.humans.map((i) => new PlayerCamera(i, this.players[i], this.arena, this.scene, this.players.length));
+    this.views = this.humans.map((i) => new PlayerCamera(i, this.players[i], this.arena, this.scene, MAX_PLAYERS));
+    loadAvatarTextures().catch((e) => console.warn('Textura do personagem não carregou:', e));
     this.renderer = new SplitScreenRenderer(container, { lowPower: this.isTouch });
     this.input = new Input(this.renderer.domElement);
     this.touch = this.isTouch ? new TouchControls(document.body) : null;
@@ -191,8 +204,43 @@ export class Game {
     }).catch((e) => console.warn('Modelos de arma não carregaram:', e));
   }
 
+  /**
+   * Quem está na partida: quantidade, times, skins e nomes. Só mexe nos personagens;
+   * controles/câmeras/HUD são refeitos por configureSession().
+   * @param r.looks  skin por vaga (id de LOOKS) · r.names nome por vaga · r.bots índices de bot
+   */
+  _setRoster({ count = 2, teamMode = 'ffa', looks = [], names = [], bots = null } = {}) {
+    count = Math.max(2, Math.min(MAX_PLAYERS, count));
+    this.teamMode = count === 2 ? 'ffa' : teamMode === 'teams' && count === 4 ? 'teams' : 'ffa';
+    this.players = this.allPlayers.slice(0, count);
+    const used = {};
+    this.allPlayers.forEach((p, i) => {
+      const on = i < count;
+      if (!on) { p.setActive(false); p.isBot = false; return; }
+      const def = SLOT_DEFS[i];
+      const look = LOOKS[looks[i]] ? looks[i] : def.variant;
+      if (p.variant !== look) p.setLook(look, def.color);
+      let name = (names[i] || LOOKS[look].name).toUpperCase().slice(0, 12);
+      used[name] = (used[name] ?? 0) + 1;
+      if (used[name] > 1) name = `${name} ${used[name]}`;
+      p.name = name;
+      p.team = this.teamMode === 'teams' ? i % 2 : i;
+      if (bots) p.isBot = bots.includes(i);
+      p.setActive(true);
+    });
+    this.roster = { count, teamMode: this.teamMode, looks: this.players.map((p) => p.variant), names: this.players.map((p) => p.name) };
+  }
+
+  /** Menu → monta a partida contra bots (1 a 3 bots, com ou sem times). */
+  setupLocalMatch({ bots = 1, teamMode = 'ffa', look = null, name = '' } = {}) {
+    const count = Math.max(2, Math.min(MAX_PLAYERS, 1 + bots));
+    this._setRoster({ count, teamMode, looks: [look], names: [name], bots: [...Array(count).keys()].slice(1) });
+    this.configureSession('local');
+  }
+
   _buildHud() {
-    const hints = this.humans.length === 1 ? [P1_BINDINGS.hints, P1_BINDINGS.hints] : [P1_BINDINGS.hints, P2_BINDINGS.hints];
+    // dicas de tecla por vaga: com uma tela só, quem joga aqui usa sempre as teclas do P1
+    const hints = SLOT_DEFS.map((_, i) => (this.humans.length > 1 && i === 1 ? P2_BINDINGS.hints : P1_BINDINGS.hints));
     this.hud = new HUD(this.hudRoot, this.players, hints, this.humans,
       this.isTouch ? '' : HELP[this.role === 'local' ? this.mode : 'vsBot'] ?? '', { touch: this.isTouch });
     if (!this.isTouch) this.hud.onUserGesture = () => this.input.requestLock(); // celular não usa trava de mouse
@@ -205,63 +253,138 @@ export class Game {
    * Troca quem joga neste aparelho.
    * @param role 'local' (contra o bot) · 'host' (criou a sala) · 'guest' (entrou)
    */
-  configureSession(role, session = null) {
+  configureSession(role, session = null, { local = 0, remotes = [] } = {}) {
     this.net?.unhook?.();
     this.net?.dispose?.();
     this.net = null;
     if (this.netSession && this.netSession !== session) this.netSession.close();
     this.netSession = session;
     this.role = role;
-    const local = role === 'guest' ? 1 : 0;
-    const remote = role === 'local' ? null : 1 - local;
-    this.players.forEach((p) => { p.isBot = role === 'local' && this.mode === 'vsBot' && p.index !== local; });
+    if (role === 'local') {
+      if (this.mode === 'vsBot') this.players.forEach((p) => { p.isBot = p.index !== local; p.netBot = false; });
+    } else {
+      this.players.forEach((p) => { p.isBot = false; p.netBot = false; });
+    }
     this.humans = this.mode === 'splitscreen' && role === 'local' ? [0, 1] : [local];
 
     // câmeras
     this.views.forEach((v) => this.scene.remove(v.camera));
-    this.views = this.humans.map((i) => new PlayerCamera(i, this.players[i], this.arena, this.scene, this.players.length));
-    // controles: teclado/toque no jogador local; o outro é bot, rede ou P2
+    this.views = this.humans.map((i) => new PlayerCamera(i, this.players[i], this.arena, this.scene, MAX_PLAYERS));
+    this._buildHud();
+    if (role === 'host') this.net = new NetHost(this, session, remotes);
+    else if (role === 'guest') this.net = new NetGuest(this, session, local);
+
+    // controles: teclado/toque no jogador local; os outros são bot, rede ou P2
     this.schemes = this.players.map((p, i) => {
       if (i === local) return this.kbScheme;
+      if (role === 'host' && this.net.schemes.has(i)) return this.net.schemes.get(i);
       if (role === 'local') return p.isBot ? new BotController(this, p) : new KeyboardGamepadScheme(this.input, P2_BINDINGS);
-      return { read: () => blankIntent() }; // substituído pelo RemoteScheme no host
+      return { read: () => blankIntent() };
     });
-    this._buildHud();
-
-    if (role === 'host') {
-      this.net = new NetHost(this, session, remote);
-      this.schemes[remote] = this.net.scheme;
-    } else if (role === 'guest') {
-      this.net = new NetGuest(this, session, local);
+    if (session) {
+      session.onClose = (reason) => this._netLost(reason);
+      if (role === 'host') session.onLeave = (peer, reason) => this._remoteLeft(peer, reason);
     }
-    if (session) session.onClose = (reason) => this._netLost(reason);
   }
 
-  /** Menu → "Criar sala". Resolve com o código; a partida começa quando o outro entrar. */
+  /** Host: um convidado saiu/caiu no meio da partida → a vaga dele vira bot e o jogo segue. */
+  _remoteLeft(peer, reason = 'saiu') {
+    const idx = this.net?.dropRemote?.(peer);
+    if (idx === undefined) return;
+    const p = this.players[idx];
+    p.isBot = true;
+    p.netBot = true;
+    const bot = new BotController(this, p);
+    this.schemes[idx] = bot;
+    if (this.sm.is(GameStates.MATCH_END)) bot.onMatchEnd();
+    this.hud.flash(null, `${p.name} ${reason.toUpperCase()} · VIROU BOT`, 'bad');
+  }
+
+  /** Host: tira um convidado da sala (ex.: ele escolheu "sair da sala" no fim da partida). */
+  kickPlayer(index) {
+    if (this.role !== 'host') return false;
+    const peer = [...(this.net?.remotes ?? [])].find(([, i]) => i === index)?.[0];
+    if (!peer) return false;
+    this.netSession.kick(peer);
+    return true;
+  }
+
+  // ---------------------------------------------------------------- sala (lobby)
+  _myLobbyInfo() {
+    const d = this.settings.data;
+    return { name: (d.playerName || '').trim().slice(0, 12), look: d.look || 'radio' };
+  }
+
+  _lobbyMembers() {
+    const s = this.pendingSession;
+    return [{ ...this._myLobbyInfo(), host: true }, ...(s?.peers ?? []).map((p) => ({ name: p.info.name ?? '', look: p.info.look ?? null, ready: !!p.info.look }))];
+  }
+
+  _sendLobby() {
+    const s = this.pendingSession;
+    if (!s) return;
+    const members = this._lobbyMembers();
+    s.send({ t: 'lobby', members, code: s.code, teamMode: this.settings.data.teamMode });
+    this.onLobby?.(members, 'host');
+  }
+
+  /** Menu → "Criar sala". Resolve com o código; o host aperta COMEÇAR quando a turma entrar (até 4). */
   async hostRoom() {
     this.cancelRoom();
     const s = new NetSession();
     this.pendingSession = s;
     s.onClose = () => { if (this.pendingSession === s) this.pendingSession = null; };
-    const code = await s.host(this.settings.data.lanServer);
-    s.onOpen = () => {
-      if (this.pendingSession !== s) return;
-      this.pendingSession = null;
-      this.configureSession('host', s);
-      this.startMatch();
+    s.onJoin = () => this._sendLobby();
+    s.onLeave = () => this._sendLobby();
+    s.onMessage = (m, peer) => {
+      if (m.t === 'hello') {
+        peer.info = { name: String(m.name ?? '').slice(0, 12), look: LOOKS[m.look] ? m.look : 'radio' };
+        this._sendLobby();
+      }
     };
+    const code = await s.host(this.settings.data.lanServer);
+    this._sendLobby();
     return code;
   }
 
-  /** Menu → "Entrar" com o código da sala. */
+  /** Host aperta COMEÇAR: distribui as vagas e todo mundo entra na partida. */
+  startNetMatch() {
+    const s = this.pendingSession;
+    if (!s || !s.peers.length) return false;
+    s.locked = true;
+    const members = this._lobbyMembers();
+    this.pendingSession = null;
+    this._setRoster({ count: members.length, teamMode: this.settings.data.teamMode, looks: members.map((m) => m.look), names: members.map((m) => m.name), bots: [] });
+    const peers = [...s.peers];
+    peers.forEach((peer, k) => s.sendTo(peer, { t: 'start', roster: this.roster, you: k + 1 }));
+    this.configureSession('host', s, { remotes: peers.map((peer, k) => ({ peer, index: k + 1 })) });
+    this.startMatch();
+    return true;
+  }
+
+  /** Menu → "Entrar" com o código da sala. Fica no lobby até o host começar. */
   async joinRoom(code) {
     this.cancelRoom();
     const s = new NetSession();
     this.pendingSession = s;
+    s.onClose = (reason) => {
+      if (this.pendingSession !== s) return;
+      this.pendingSession = null;
+      this.onLobby?.(null, 'closed', reason);
+    };
+    s.onMessage = (m) => {
+      if (m.t === 'lobby') this.onLobby?.(m.members, 'guest', m.code);
+      else if (m.t === 'start') this._guestStart(s, m);
+    };
     await s.join(code, this.settings.data.lanServer);
     if (this.pendingSession !== s) { s.close(); return; }
+    s.send({ t: 'hello', ...this._myLobbyInfo() });
+  }
+
+  _guestStart(s, m) {
     this.pendingSession = null;
-    this.configureSession('guest', s);
+    this._setRoster({ ...m.roster, bots: [] });
+    this.configureSession('guest', s, { local: m.you });
     this.inMenu = false;
     this.paused = false;
     document.body.classList.remove('in-menu');
@@ -315,6 +438,10 @@ export class Game {
   }
 
   startMatch() {
+    if (this.role === 'local' && this.mode === 'vsBot') {
+      const d = this.settings.data;
+      this.setupLocalMatch({ bots: Number(d.bots) || 1, teamMode: d.teamMode, ...this._myLobbyInfo() });
+    }
     this.playFrom(Number(this.settings.data.startStage) || 0);
   }
 
@@ -359,6 +486,7 @@ export class Game {
     this.sm.currentName = null;
     this.projectiles.clear();
     this.grenades.clear();
+    this.grab.clear();
     this.flow.match = null;
     this.flow.stageIndex = -1;
     this.arena.setMap('estudio');
@@ -405,6 +533,7 @@ export class Game {
     this.lastDt = dt;
     this.time += dt;
     this.intents = this.schemes.map((s, i) => (this.paused && this.isLocal(this.players[i]) ? (s.read(dt), blankIntent()) : s.read(dt)));
+    this.grab.update(dt, this.intents); // antes do estado: segurando alguém, o clique vira arremesso
     this.sm.update(dt);
 
     this.players.forEach((p, i) => {

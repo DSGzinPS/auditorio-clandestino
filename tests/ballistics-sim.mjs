@@ -144,8 +144,8 @@ const spreadOn = () => { CONFIG.weapon.spreadMult = 1; CONFIG.weapon.recoilMult 
 {
   spreadOff();
   const { g, a, b } = duel('ak47', { fire: () => true });
-  a.teleport({ x: -8.2, y: 0, z: 0 }, 0);
-  b.teleport({ x: -3.0, y: 0, z: 0 }, 0);
+  a.teleport({ x: -10.2, y: 0, z: 0 }, 0);
+  b.teleport({ x: -5.0, y: 0, z: 0 }, 0);
   b.hp = 1e9;
   let hits = 0;
   g.damage.onHit = () => hits++;

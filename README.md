@@ -1,8 +1,10 @@
-# Programa de Auditório Clandestino — Greybox (Fase 4: armas reais, rede e som)
+# Programa de Auditório Clandestino — Greybox (Fase 5: até 4 jogadores, agarrão e personagem do Davi)
 
-FPS 1v1 com Three.js + cannon-es. Quiz de matemática → erra e vai pro teto → tiroteio com ragdoll.
+FPS de 2 a 4 jogadores com Three.js + cannon-es. Quiz de matemática → erra e vai pro teto → tiroteio com ragdoll.
 
-Por padrão você joga em **tela cheia contra um bot offline** (o P2, "FONE"), que se comporta como um jogador em outro PC — ou **em rede** com outro aparelho (PC ↔ celular, celular ↔ celular). Para o 1v1 local de tela dividida: `CONFIG.game.mode = 'splitscreen'` em `src/config.js`.
+Por padrão você joga em **tela cheia contra 1 a 3 bots** (cada um por si, ou 2 contra 2 com 3 bots), que se comportam como jogadores em outro PC — ou **em rede** com até 4 aparelhos (PC e celular misturados).
+
+**Personagens:** Rádio, Fone, TV, Microfone e o **Davi** (colete tático, headset e o rosto dele). Escolha no menu; todos têm a mesma hitbox, só muda o visual. Para o 1v1 local de tela dividida: `CONFIG.game.mode = 'splitscreen'` em `src/config.js`.
 
 ## Baixar a alpha (sem instalar nada)
 
@@ -33,12 +35,13 @@ npm run dev:lan          # abre o jogo pra rede: o celular acessa http://IP-DO-P
 
 ## Jogar em rede (LAN)
 
-Menu → **JOGAR EM REDE (LAN)**. Um aparelho toca em **CRIAR SALA** e aparece um código de 4 letras; o outro digita o código e toca em **ENTRAR**. A partida começa sozinha quando os dois estão conectados. Funciona PC ↔ celular (APK ou navegador) e celular ↔ celular.
+Menu → **JOGAR EM REDE (LAN)**. Um aparelho toca em **CRIAR SALA** e aparece um código de 4 letras; até 3 pessoas digitam o código e tocam em **ENTRAR**. Todo mundo aparece na sala de espera (nome e personagem); o host toca em **COMEÇAR**. Com 4 dá pra escolher **cada um por si** ou **2 contra 2**. Funciona com PC e celular misturados (APK ou navegador).
 
 - **Com internet (padrão):** o servidor público do PeerJS só "apresenta" os dois aparelhos; depois o jogo vai **direto pela sua rede** (WebRTC).
 - **Sem internet:** no PC rode `npm run lan-server`. Ele mostra o IP do PC (ex.: `192.168.0.10`). Nos **dois** aparelhos, em "Sem internet? Servidor no PC", digite esse IP. Se o Windows perguntar, libere o firewall para redes privadas.
 - Quem cria a sala é o **host**: a física e as regras rodam nele, e ele manda a cena ~60×/s. O convidado mira localmente (sem atraso no mouse/dedo) e manda os comandos. Pra teste interno no mesmo Wi-Fi isso fica liso.
-- Pausar em rede só abre o menu — o jogo continua para o outro. "Sair da sala" (ou desconectar) leva os dois de volta ao menu.
+- Pausar em rede só abre o menu — o jogo continua para os outros.
+- Se um convidado sair ou cair no meio da partida, a vaga dele **vira bot** e o jogo segue. Se o host sair, a sala fecha pra todo mundo.
 
 ## Celular / APK
 
@@ -60,9 +63,12 @@ O APK é gerado no GitHub (`.github/workflows/android-apk.yml`): a cada push na 
 - **Cada minigame (1, 3 e 5) pune quem fez menos pontos no PvP seguinte:** com 0 pontos fica com o **patinho**, com 1 ou mais fica com o **estilingue**, sem loja — **só no 1º round** (`CONFIG.match.punishRounds`). Do 2º round em diante todo mundo compra. A punição que sobra é ter menos dinheiro.
 - **Bônus de derrota (estilo CS):** quem perde o round ganha $600, +$300 a cada derrota seguida (máx. $1500). Evita a bola de neve de quem já começou atrás. Se todos empatarem, **"saem na mão"**: desempate só no soco.
 - **Vencedor da partida:** o time com mais rounds ganhos nos 3 PvPs (12 rounds).
-- **Fim de partida:** não recomeça sozinho. Cada um escolhe **PEDIR REVANCHE** ou **SAIR DA SALA**. A revanche só começa quando **todos aceitam**; se alguém sair, volta pro menu. (O bot sempre topa.)
+- **Fim de partida:** não recomeça sozinho. Cada um escolhe **PEDIR REVANCHE** ou **SAIR DA SALA**. A revanche só começa quando **todos aceitam**. Em rede, o convidado que sai vira bot e o resto segue; se o host sai, a sala fecha. (O bot sempre topa.)
 - **Basquete:** cada jogador tem a própria bola-bomba (outra aparece na mão 0,9 s depois de arremessar). Na cesta é ponto. No chão ou num jogador ela explode e arremessa quem estiver perto, sem dano. SOCO empurra. A cesta do outro lado é a sua.
 - Para testar uma etapa direto: painel **G** → Testes → "Pular para etapa".
+
+- **Mapas de PvP (Estúdio, Bastidores, Rua):** maiores, com **4 salas de spawn** nos cantos (paredes com porta e um divisor no meio). Ninguém nasce vendo ninguém: no 1v1 e no 2 contra 2 cada time nasce numa sala de canto oposta; no cada um por si, uma sala por jogador. Os bots usam um mapa de caminhos (`ai/NavGrid.js`) pra sair da sala e contornar parede.
+- **Com 3 ou 4 (cada um por si):** cada jogador é um "time"; no basquete qualquer cesta vale pra quem arremessou.
 
 Os mapas ficam em `src/world/maps.js` e o roteiro em `CONFIG.match.stages`.
 
@@ -89,8 +95,10 @@ Tudo sintetizado na hora (WebAudio, sem arquivos): tiro diferente por arma, reca
 
 ## Controles
 
-Contra o bot / em rede: WASD + mouse (clique na tela para travar), clique atira, **botão direito/Z mira (zoom)**, **R recarrega**, **V / botão do meio soca**, 1/2 responde o quiz, 1/2/3 = pedra/papel/tesoura, loja: **Q/E troca de aba**, 1–4 compra, Enter pronto.
-Celular: botões ATIRAR, SOCO, PULAR, **RECARREGAR** e **MIRA** (liga/desliga), além de AGACHAR e CORRER.
+Contra o bot / em rede: WASD + mouse (clique na tela para travar), clique atira, **botão direito/Z mira (zoom)**, **R recarrega**, **V / botão do meio soca**, **E agarra** (clique arremessa, E de novo solta), 1/2 responde o quiz, 1/2/3 = pedra/papel/tesoura, loja: **Q/E troca de aba**, 1–4 compra, Enter pronto.
+Celular: botões ATIRAR, SOCO, PULAR, **AGARRAR**, **RECARREGAR** e **MIRA** (liga/desliga), além de AGACHAR e CORRER.
+
+**Agarrão:** chegou perto e de frente de alguém, aperta E: ele vira ragdoll e vai pendurado na sua frente enquanto você anda (mais devagar). Clique arremessa pra onde você olha (dá pra jogar na frente do carro na Rua). Quem foi agarrado se debate pulando/socando e escapa sozinho em ~3,5 s. Vale no PvP, no desempate na mão e no basquete.
 
 Em tela dividida (`CONFIG.game.mode = 'splitscreen'`):
 
@@ -100,6 +108,7 @@ Em tela dividida (`CONFIG.game.mode = 'splitscreen'`):
 | Mirar | Mouse (clique na tela p/ travar) | IJKL / Numpad 8-4-5-6 · analógico direito |
 | Atirar | Clique esquerdo · F | Enter / Numpad 0 · RT |
 | Socar | V · botão do meio | Shift direito · RB |
+| Agarrar / soltar | E (clique arremessa) | End / Insert · LB |
 | Mirar / recarregar | Botão direito · Z / R | Numpad / e - · LT / X |
 | Responder | 1 / 2 | 9 / 0 · X / B |
 | Comprar | 1–6 · clique | clique |
@@ -118,6 +127,9 @@ src/
   systems/Ballistics.js     tiro hitscan: dispersão, queda de dano, headshot, explosão do RPG
   systems/Effects.js        traçante, impacto, clarão de explosão
   systems/AudioSystem.js    todos os sons (sintetizados, 3D) e a plateia
+  systems/Grab.js           agarrar, arrastar e arremessar outro jogador
+  ai/NavGrid.js             caminhos do bot (grade + A*): sai das salas de spawn e contorna paredes
+  entities/looks.js         visuais (skins): objetos e o Davi; assets/avatars/ tem o rosto
   systems/DamageSystem.js   dano, colete, headshot, tranco/ragdoll, kill
   systems/Basketball.js     bola: pegar, carregar, arremessar, cesta
   systems/Grenades.js       granadas que arremessam sem dano
@@ -187,6 +199,6 @@ Tudo em `src/config.js → CONFIG.chaos`. A massa total do boneco é ~8,2 kg, en
 - Levantar é instantâneo (teleporte para a pose em pé). Um blend animado vem depois.
 - Cotovelos não têm limite (cannon-es não limita hinge). Se quiser menos bizarro, troque por `ConeTwistConstraint` com cone pequeno.
 - Estilingue e patinho continuam sendo projéteis físicos (com arco); as armas de fogo são instantâneas.
-- Rede: o convidado vê o próprio boneco com o atraso da rede (sem previsão de movimento). No mesmo Wi-Fi é imperceptível; pela internet longe pode "escorregar". Por enquanto 2 jogadores por sala.
+- Rede: o convidado vê o próprio boneco com o atraso da rede (sem previsão de movimento). No mesmo Wi-Fi é imperceptível; pela internet longe pode "escorregar". Até 4 por sala (8 pela internet vai precisar de um servidor dedicado).
 - Bot sem navegação de verdade (sem navmesh): contorna obstáculos trocando de lado quando trava.
 - No modo tela dividida, 2 jogadores no mesmo teclado é apertado: para o P2, use gamepad.

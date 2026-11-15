@@ -12,7 +12,7 @@
     "preview": "vite preview",
     "test:physics": "node tests/physics-sim.mjs",
     "test:bot": "node tests/bot-sim.mjs",
-    "test": "node tests/physics-sim.mjs && node tests/bot-sim.mjs && node tests/ballistics-sim.mjs && node tests/match-sim.mjs",
+    "test": "node tests/physics-sim.mjs && node tests/bot-sim.mjs && node tests/ballistics-sim.mjs && node tests/grab-sim.mjs && node tests/match-sim.mjs",
     "test:match": "node tests/match-sim.mjs",
     "android:sync": "npm run build && npx cap sync android",
     "lan-server": "node scripts/lan-server.mjs",

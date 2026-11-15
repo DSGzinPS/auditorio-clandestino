@@ -57,8 +57,21 @@ export class Arena {
     return { position: new CANNON.Vec3(s.position.x + extra * 2.2, 0, s.position.z), yaw: s.yaw };
   }
 
-  /** Spawn de PvP: times em lados opostos, colegas lado a lado. */
-  pvpSpawn(player, slot = 0) {
+  /**
+   * Spawn de PvP.
+   * Mapas com salas (def.rooms): cada um nasce numa sala de canto, sem ver ninguém.
+   *  • times (e 1v1): time 0 na sala +Z esquerda, time 1 na sala −Z direita (colegas lado a lado)
+   *  • cada um por si: uma sala por vaga
+   */
+  pvpSpawn(player, slot = 0, ffa = false) {
+    const r = this.def.rooms;
+    if (r) {
+      const ROOMS = [[-1, 1], [1, -1], [1, 1], [-1, -1]];
+      const [sx, sz] = ROOMS[ffa ? player.index % 4 : player.team % 2];
+      const cz = sz * (r.zIn + this.D / 2) / 2;
+      const off = (slot % 2 === 0 ? -1 : 1) * Math.ceil(slot / 2) * 1.8;
+      return { position: new CANNON.Vec3(sx * this.W / 4 + off, 0, cz), yaw: sz > 0 ? 0 : Math.PI };
+    }
     const side = player.team % 2 === 0 ? 1 : -1;
     const x = (slot % 2 === 0 ? 1 : -1) * Math.ceil(slot / 2) * 2.2;
     return { position: new CANNON.Vec3(x, 0, side * this.def.pvpZ), yaw: side > 0 ? 0 : Math.PI };
@@ -162,7 +175,7 @@ export class Arena {
     this.group.add(k.target);
     [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(([sx, sz], i) => {
       const l = new THREE.PointLight(colors[i % colors.length], point, Math.max(W, D), 2);
-      l.position.set(sx * (W / 2 - 2), H - 1.2, sz * (D / 2 - 2));
+      l.position.set(sx * Math.min(W / 2 - 2, W * 0.3), H - 1.2, sz * Math.min(D / 2 - 2, D * 0.28));
       this.group.add(l);
     });
   }

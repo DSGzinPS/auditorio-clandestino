@@ -13,6 +13,7 @@ export const blankIntent = () => ({
   melee: false,
   ads: false,    // mirando (zoom)
   reload: false, // apertou recarregar neste frame
+  grab: false,   // apertou agarrar/soltar neste frame
   tab: 0,        // loja: -1/+1 troca de aba
   buyId: null,   // loja: compra direta por id (clique, bot, rede)
   rematch: false,
@@ -33,6 +34,7 @@ export const P1_BINDINGS = {
   melee: ['KeyV', 'KeyQ'],
   ads: ['KeyZ'],   // além do clique direito
   reload: ['KeyR'],
+  grab: ['KeyE'],  // agarra/solta (clique arremessa)
   tabPrev: ['KeyQ'], tabNext: ['KeyE', 'Tab'],
   jump: ['Space'], sprint: ['ShiftLeft'], crouch: ['KeyC', 'ControlRight'],
   answerA: ['Digit1'], answerB: ['Digit2'], answerC: ['Digit3'],
@@ -48,7 +50,7 @@ export const P2_BINDINGS = {
   fire: ['Enter', 'NumpadEnter', 'Numpad0'],
   melee: ['ShiftRight', 'NumpadDecimal'],
   jump: ['Numpad7'], sprint: ['Numpad9'], crouch: ['NumpadMultiply'],
-  ads: ['NumpadDivide'], reload: ['NumpadSubtract'], tabPrev: [], tabNext: [],
+  ads: ['NumpadDivide'], reload: ['NumpadSubtract'], grab: ['End', 'Insert'], tabPrev: [], tabNext: [],
   answerA: ['Digit9', 'Numpad1'], answerB: ['Digit0', 'Numpad2'], answerC: ['Digit8', 'Numpad3'],
   buy: [], // P2 compra clicando
   ready: ['NumpadAdd'],
@@ -77,6 +79,7 @@ export class KeyboardMouseScheme {
     it.melee = i.anyDown(b.melee) || (i.locked && i.mouseButtons.has(1));
     it.ads = (i.locked && i.mouseButtons.has(2)) || i.anyDown(b.ads);
     it.reload = i.anyPressed(b.reload);
+    it.grab = i.anyPressed(b.grab);
     it.tab = (i.anyPressed(b.tabNext) ? 1 : 0) - (i.anyPressed(b.tabPrev) ? 1 : 0);
     it.jump = i.anyPressed(b.jump);
     it.sprint = i.anyDown(b.sprint);
@@ -100,6 +103,7 @@ export class KeyboardMouseScheme {
       it.crouch ||= t.crouch;
       it.ads ||= t.ads;
       it.reload ||= t.reload;
+      it.grab ||= t.grab;
     }
     return it;
   }
@@ -125,6 +129,7 @@ export class KeyboardGamepadScheme {
     it.melee = i.anyDown(b.melee);
     it.ads = i.anyDown(b.ads);
     it.reload = i.anyPressed(b.reload);
+    it.grab = i.anyPressed(b.grab);
     it.jump = i.anyPressed(b.jump);
     it.sprint = i.anyDown(b.sprint);
     it.crouch = i.anyDown(b.crouch);
@@ -149,6 +154,9 @@ export class KeyboardGamepadScheme {
       if (r && !this.prevR) it.reload = true; // X recarrega (fora do quiz)
       this.prevR = r;
       it.ready ||= btn(9); // Start
+      const gb = btn(4); // LB agarra/solta
+      if (gb && !this.prevGrab) it.grab = true;
+      this.prevGrab = gb;
       const j = btn(0);
       if (j && !this.prevJump) it.jump = true; // A
       this.prevJump = j;

@@ -12,12 +12,13 @@ export class BuyState extends State {
     const m = g.flow.match;
     g.combatActive = false;
     g.projectiles.clear();
+    g.grab?.clear();
     m.prepareRound();
 
     const slots = {};
     g.players.forEach((p) => {
       const slot = (slots[p.team] = (slots[p.team] ?? -1) + 1);
-      const s = g.arena.pvpSpawn(p, slot);
+      const s = g.arena.pvpSpawn(p, slot, g.teamMode === 'ffa' && g.players.length > 2);
       p.teleport(s.position, s.yaw);
       p.frozen = true;
       p.canLook = true;

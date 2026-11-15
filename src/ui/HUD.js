@@ -25,9 +25,9 @@ export class HUD {
     root.classList.toggle('single', humans.length === 1);
     root.innerHTML = `
       <div class="topbar">
-        <div class="team-score" data-team="0"></div>
+        <div class="team-scores left"></div>
         <div class="phase"></div>
-        <div class="team-score" data-team="1"></div>
+        <div class="team-scores right"></div>
       </div>
       <div class="divider"></div>
       <button class="pause-btn" tabindex="-1" title="Pausa">⏸</button>
@@ -144,6 +144,14 @@ export class HUD {
       this._set(h.querySelector('.weapon-name'), 't', wn);
       this._ammo(h, p, game);
       this._set(h.querySelector('.money'), 't', `$ ${m.money[p.index]}`);
+    }
+    const key = m.teams.join(',');
+    if (this._teamsKey !== key) { // monta um placar por time (2 a 4)
+      this._teamsKey = key;
+      const [left, right] = this.root.querySelectorAll('.team-scores');
+      left.innerHTML = '';
+      right.innerHTML = '';
+      m.teams.forEach((t, k) => (k % 2 === 0 ? left : right).insertAdjacentHTML('beforeend', `<div class="team-score" data-team="${t}"></div>`));
     }
     this.root.querySelectorAll('.team-score').forEach((el) => {
       const t = Number(el.dataset.team);
@@ -457,7 +465,7 @@ export class HUD {
     this.banner.querySelectorAll('.vote-row').forEach((row) => {
       const i = Number(row.dataset.p);
       const btn = row.querySelector('.rematch');
-      btn.textContent = votes[i] === 'rematch' ? 'ESPERANDO O OUTRO…' : someoneAsked ? 'ACEITAR REVANCHE' : 'PEDIR REVANCHE';
+      btn.textContent = votes[i] === 'rematch' ? 'ESPERANDO OS OUTROS…' : someoneAsked ? 'ACEITAR REVANCHE' : 'PEDIR REVANCHE';
       btn.disabled = votes[i] !== null;
       row.querySelector('.leave').disabled = votes[i] === 'leave';
     });

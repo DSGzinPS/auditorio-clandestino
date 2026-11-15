@@ -320,7 +320,6 @@ body.hud-editing #hud { z-index: 5; }
 .touch-ads { right: calc(4% + 112px); bottom: calc(14% + 96px); width: 62px; height: 62px; background: #ff8a3daa; font-size: 12px; }
 .touch-reload { right: calc(4% + 196px); bottom: calc(6% + 70px); width: 58px; height: 58px; background: #ffffff55; font-size: 8px; }
 .touch-ads { right: calc(4% + 112px); bottom: calc(14% + 96px); width: 62px; height: 62px; background: #ff8a3daa; font-size: 12px; }
-.touch-reload { right: calc(4% + 196px); bottom: calc(6% + 70px); width: 58px; height: 58px; background: #ffffff55; font-size: 8px; }
 
 /* fim de partida: revanche / sair */
 .banner.interactive { pointer-events: auto; }
@@ -352,3 +351,24 @@ body.hud-editing #hud { z-index: 5; }
 .net-adv summary { cursor: pointer; font-weight: 800; }
 .net-adv code { background: #1d1630; padding: 2px 6px; border-radius: 6px; }
 .menu.is-guest .no-guest { display: none; }
+.team-scores { display: flex; flex-direction: column; gap: 4px; }
+.team-scores.left { align-items: flex-end; }
+.team-scores.right { align-items: flex-start; }
+.touch-grab { right: calc(4% + 196px); bottom: calc(6% + 140px); width: 58px; height: 58px; background: #a86bffaa; font-size: 9px; }
+
+/* menu: personagem, nome, bots, lobby */
+.seg.seg-wrap { flex-wrap: wrap; justify-content: flex-end; max-width: 72%; }
+.menu-name {
+  font: inherit; font-weight: 800; background: #2a2140; color: #fff; border: 2px solid #ffffff2a;
+  border-radius: 10px; padding: 6px 10px; width: 55%; text-transform: uppercase;
+}
+.menu-note { font-size: 12px; opacity: .7; margin: -2px 0 8px; text-align: right; }
+.net-members { list-style: none; padding: 0; margin: 8px auto; max-width: 320px; text-align: left; }
+.net-members li { background: #1d1630; border-radius: 10px; padding: 6px 10px; margin: 4px 0; font-weight: 800; }
+.net-members small { opacity: .65; font-weight: 600; margin-left: 6px; }
+.net-hint { font-weight: 700; }
+@media (max-height: 520px) {
+  .menu-card { padding: 12px 16px; }
+  .net-code-big { font-size: 40px; margin: 0; }
+  .menu-sub { margin: 4px 0 8px; }
+}

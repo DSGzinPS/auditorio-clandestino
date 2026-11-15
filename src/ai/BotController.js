@@ -12,6 +12,7 @@ import { GameStates } from '../core/StateMachine.js';
 import { blankIntent } from '../core/Controls.js';
 import { GROUP } from '../physics/PhysicsWorld.js';
 import { MELEE, SHOP_ORDER, shopItem } from '../data/catalog.js';
+import { NavGrid } from './NavGrid.js';
 
 export const BOT_PRESETS = {
   facil:   { quizAccuracy: 0.5, turnSpeed: 2.0, aimError: 0.12, reactionTime: 0.7, fireConeDeg: 4, leadSkill: 0.3 },
@@ -232,6 +233,8 @@ export class BotController {
 
   _combat(dt, it) {
     const me = this.self, b = CONFIG.bot;
+    // agarrado: se debate pra escapar
+    if (me.mode === 'ragdoll' && this.game.grab?.heldBy(me) && Math.random() < dt * 4) it.jump = true;
     if (me.mode !== 'controlled' || me.dead || me.frozen) { this.seeTimer = 0; return; }
     const foe = this._nearestEnemy();
     if (!foe) return;
@@ -268,11 +271,19 @@ export class BotController {
       this.aimOffsetTimer = rand(0.4, 0.9);
     }
 
-    // Para onde olhar: o inimigo, ou o patinho se for buscá-lo
+    // Para onde olhar: o inimigo, o patinho se for buscá-lo, ou o próximo ponto do caminho
+    const sees = this._lineOfSight(eye, aim);
     let lookX = lx, lookY = dy + drop, lookZ = lz;
+    let navigating = false;
     if (duckOnFloor && flat > 4) {
       const d = duck.body.position;
       lookX = d.x - eye.x; lookY = d.y - eye.y; lookZ = d.z - eye.z;
+    } else if (!sees) {
+      const wp = this._waypoint(dt, me.controller.position, foe.centerPosition(this._goal));
+      if (wp) {
+        navigating = true;
+        lookX = wp.x - eye.x; lookY = 0; lookZ = wp.z - eye.z;
+      }
     }
     const desiredYaw = Math.atan2(-lookX, -lookZ) + this.aimOffset.yaw;
     const desiredPitch = Math.atan2(lookY, Math.hypot(lookX, lookZ)) + this.aimOffset.pitch;
@@ -282,7 +293,6 @@ export class BotController {
     it.lookX = -clamp(dYaw, -maxTurn, maxTurn); // Character faz yaw -= lookX
     it.lookY = -clamp(dPitch, -maxTurn, maxTurn);
 
-    const sees = this._lineOfSight(eye, aim);
     this.seeTimer = sees ? this.seeTimer + dt : 0;
     const cone = b.fireConeDeg * DEG;
     const onTarget = Math.abs(dYaw) < cone && Math.abs(dPitch) < cone * 1.5;
@@ -307,6 +317,20 @@ export class BotController {
     if (!sees && w.ammo < (def.mag ?? 0) * 0.4 && w.reserve > 0) it.reload = true; // recarrega escondido
     if (flat < MELEE.range && Math.abs(dYaw) < 0.6 && reacted) it.melee = true; // colou, soca
 
+    // Agarrão: de vez em quando, colado, agarra e arremessa (mais ainda de mãos vazias)
+    const grab = g.grab;
+    if (grab?.holding(me)) {
+      this.grabT = (this.grabT ?? 0) + dt;
+      it.fire = this.grabT > this.throwAt; // arremessa
+      it.melee = false;
+    } else if (grab?.allowed() && flat < CONFIG.grab.range * 0.85 && Math.abs(dYaw) < 0.5 && reacted
+      && foe.mode === 'controlled' && Math.random() < dt * (unarmed ? 1.5 : b.grabRate ?? 0.25)) {
+      it.grab = true;
+      it.fire = false;
+      this.grabT = 0;
+      this.throwAt = rand(0.5, 1.4);
+    }
+
     // Movimento
     this.strafeTimer -= dt;
     if (this.strafeTimer <= 0) {
@@ -314,7 +338,10 @@ export class BotController {
       this.strafeTimer = rand(b.strafeMin, b.strafeMax);
     }
     let mz = 0, mx = 0;
-    if (duckOnFloor && flat > 4) {
+    if (navigating) {
+      mz = 1; // segue o caminho (contorna paredes e sai da sala de spawn)
+      mx = 0;
+    } else if (duckOnFloor && flat > 4) {
       mz = 1; // corre até o patinho (ele está olhando pra ele)
     } else if (unarmed) {
       mz = flat > 1.1 ? 1 : 0; // vai pra cima pra socar
@@ -341,7 +368,24 @@ export class BotController {
     it.moveX = mx;
     it.moveZ = mz;
     it.sprint = mz > 0 && (!sees || flat > rMax * 1.3 || (duckOnFloor && flat > 4));
+    if (navigating && Math.abs(dYaw) > 0.9) it.moveZ = 0.2; // virando a esquina: devagar
     if (sees && Math.random() < dt * 0.25) it.jump = true; // pulinho de vez em quando, pra dificultar a mira
+  }
+
+  /** Próximo ponto do caminho até o alvo (refaz o caminho de tempos em tempos). */
+  _waypoint(dt, from, to) {
+    const g = this.game;
+    g.nav ??= new NavGrid(g);
+    this.navT = (this.navT ?? 0) - dt;
+    if (this.navT <= 0 || !this.route?.length) {
+      this.navT = 0.7 + Math.random() * 0.3;
+      this.route = g.nav.ensure().path(from, to);
+    }
+    const r = this.route;
+    if (!r?.length) return null;
+    // chegou no ponto → próximo; se já enxerga o seguinte, pula (caminho mais liso)
+    while (r.length > 1 && (Math.hypot(r[0].x - from.x, r[0].z - from.z) < 1.3 || g.nav.clear(from, r[1]))) r.shift();
+    return r[0];
   }
 
   _targetPoint(foe, out) {

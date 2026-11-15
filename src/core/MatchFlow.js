@@ -47,6 +47,7 @@ export class MatchFlow {
   /** Troca o mapa e atualiza os spawns de cada jogador. */
   _loadMap(id) {
     const g = this.game;
+    g.grab?.clear();
     g.projectiles.clear();
     g.arena.setMap(id);
     g.players.forEach((p) => {

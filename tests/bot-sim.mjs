@@ -96,8 +96,8 @@ for (const level of ['facil', 'normal', 'dificil']) {
 // 6) Atrás da cobertura → não atira
 {
   const g = roundSetup({ botWeapon: 'usp' });
-  g.players[0].teleport({ x: -8.2, y: 0, z: 0 }, 0);
-  g.players[1].teleport({ x: -3.0, y: 0, z: 0 }, 0);
+  g.players[0].teleport({ x: -10.2, y: 0, z: 0 }, 0);
+  g.players[1].teleport({ x: -5.0, y: 0, z: 0 }, 0);
   let shots = 0;
   g.players[1].weapon.onFire = () => { shots++; };
   // mantém o bot parado no lugar

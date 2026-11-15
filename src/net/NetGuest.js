@@ -66,10 +66,7 @@ export class NetGuest {
   }
 
   _onMessage(m) {
-    this.session.touch();
     if (m.t === 'f') this.queue.push(m);
-    else if (m.t === 'bye') this.session._lost('O host fechou a sala');
-    else if (m.t === 'full') this.session._lost('A sala já está cheia');
   }
 
   // ---------------------------------------------------------------- por frame
@@ -147,6 +144,7 @@ export class NetGuest {
     } else if (e[0] === 'e') {
       g.effects.replay(e[1], e[2]);
     } else if (e[0] === 'r') { // recuo na MINHA mira
+      if (e[3] !== undefined && e[3] !== this.local) return;
       const me = g.players[this.local];
       me.pitch = Math.min(1.45, me.pitch + e[1]);
       me.yaw += e[2];

@@ -14,6 +14,7 @@ import * as CANNON from 'cannon-es';
 import { CONFIG } from '../config.js';
 import { GROUP, playerGroup, ALL_PLAYERS_MASK } from '../physics/PhysicsWorld.js';
 import { GunModels } from './GunModels.js';
+import { buildLook } from './looks.js';
 
 export const STAND_HEIGHT = 0.85; // centro do controller acima do chão
 const EYE_OFFSET = 0.75;           // olho acima do centro do controller
@@ -72,6 +73,7 @@ export class Character {
 
     this.parts = {};
     this.partList = [];
+    this.active = true;
     this.constraints = [];
     this.layer = 1 + index; // a própria câmera esconde esse layer em 1ª pessoa
 
@@ -125,55 +127,66 @@ export class Character {
   }
 
   _buildParts() {
-    const skin = new THREE.MeshStandardMaterial({ color: this.color, roughness: 0.55 });
-    const dark = new THREE.MeshStandardMaterial({ color: 0x1e1d24, roughness: 0.8 });
-    const limb = new THREE.MeshStandardMaterial({ color: 0xd9d9e0, roughness: 0.7 });
-
-    // Tronco (cilindro)
-    const torsoMesh = new THREE.Mesh(new THREE.CylinderGeometry(TORSO.radius, TORSO.radius, TORSO.height, 24), skin);
-    this._decorateTorso(torsoMesh, dark, skin);
-    this._addPart('torso', new CANNON.Cylinder(TORSO.radius, TORSO.radius, TORSO.height, 12), TORSO.mass, V(0, TORSO.y, 0), torsoMesh);
+    // Cada peça tem um "suporte" ligado ao corpo físico; o visual (skin) vai dentro dele.
+    this.holders = {};
+    const holder = (name) => (this.holders[name] = new THREE.Group());
+    this._addPart('torso', new CANNON.Cylinder(TORSO.radius, TORSO.radius, TORSO.height, 12), TORSO.mass, V(0, TORSO.y, 0), holder('torso'));
 
     for (const side of [-1, 1]) {
       const s = side < 0 ? 'L' : 'R';
       const [ux, uy, uz] = UPPER_ARM.half;
       this._addPart(`upperArm${s}`, new CANNON.Box(V(ux, uy, uz)), UPPER_ARM.mass,
-        V(UPPER_ARM.x * side, UPPER_ARM.y, 0), new THREE.Mesh(new THREE.BoxGeometry(ux * 2, uy * 2, uz * 2), limb));
+        V(UPPER_ARM.x * side, UPPER_ARM.y, 0), holder(`upperArm${s}`));
 
       const [fx, fy, fz] = FOREARM.half;
       this._addPart(`forearm${s}`, new CANNON.Box(V(fx, fy, fz)), FOREARM.mass,
-        V(FOREARM.x * side, FOREARM.y, 0), new THREE.Mesh(new THREE.BoxGeometry(fx * 2, fy * 2, fz * 2), limb));
+        V(FOREARM.x * side, FOREARM.y, 0), holder(`forearm${s}`));
 
       this._addPart(`leg${s}`, new CANNON.Cylinder(LEG.radius, LEG.radius, LEG.length, 8), LEG.mass,
-        V(LEG.x * side, LEG.y, 0), new THREE.Mesh(new THREE.CylinderGeometry(LEG.radius, LEG.radius, LEG.length, 10), limb));
+        V(LEG.x * side, LEG.y, 0), holder(`leg${s}`));
     }
 
     const [wx, wy, wz] = WEAPON.half;
     this._addPart('weapon', new CANNON.Box(V(wx, wy, wz)), WEAPON.mass, V(...WEAPON.pos), buildWeaponMesh(this.color, wx, wy, wz));
+    this.setLook(this.variant, this.color);
   }
 
-  _decorateTorso(torso, dark, skin) {
-    const add = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) => {
-      const m = new THREE.Mesh(geo, mat);
-      m.position.set(x, y, z);
-      m.rotation.set(rx, ry, rz);
-      torso.add(m);
-      return m;
-    };
-    // "Visor" frontal (-Z) para deixar claro para onde o boneco olha
-    add(new THREE.BoxGeometry(0.5, 0.16, 0.06), dark, 0, 0.22, -TORSO.radius + 0.02);
+  /** Troca o visual (skin) sem mexer na física: todo personagem tem a mesma hitbox. */
+  setLook(variant, color = this.color) {
+    this.variant = variant;
+    this.color = color;
+    buildLook(variant, color, this.holders, { TORSO, UPPER_ARM, FOREARM, LEG });
+    this.parts.weapon.mesh.userData.accent?.color?.set?.(color);
+    for (const h of Object.values(this.holders)) {
+      h.traverse((o) => {
+        o.layers.set(this.layer);
+        if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
+      });
+    }
+  }
 
-    if (this.variant === 'radio') {
-      add(new THREE.CylinderGeometry(0.2, 0.2, 0.05, 24), dark, 0, -0.1, -TORSO.radius + 0.01, Math.PI / 2);
-      const antenna = add(new THREE.CylinderGeometry(0.015, 0.015, 0.75, 6), dark, 0.22, 0.75, 0.05, 0, 0, -0.35);
-      const tip = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), skin);
-      tip.position.y = 0.38;
-      antenna.add(tip);
+  /** Liga/desliga o personagem (salas com menos de 4: os que sobram ficam fora do mundo). */
+  setActive(on) {
+    if (this.active === on) return;
+    this.active = on;
+    for (const p of this.partList) p.mesh.visible = on;
+    if (on) {
+      this.controller.type = CANNON.Body.DYNAMIC;
+      this.controller.collisionFilterMask = this.maskController;
+      this.controller.updateMassProperties();
+      for (const p of this.partList) p.body.collisionFilterMask = this.maskKinematic;
+      this.teleport(this.spawn.position, this.spawn.yaw);
     } else {
-      // fone de ouvido: arco + conchas
-      add(new THREE.TorusGeometry(0.46, 0.05, 8, 28, Math.PI), dark, 0, 0.12, 0);
-      add(new THREE.CylinderGeometry(0.17, 0.17, 0.12, 20), dark, -0.47, 0.1, 0, 0, 0, Math.PI / 2);
-      add(new THREE.CylinderGeometry(0.17, 0.17, 0.12, 20), dark, 0.47, 0.1, 0, 0, 0, Math.PI / 2);
+      if (this.mode === 'ragdoll') this._leaveRagdoll();
+      this.controller.type = CANNON.Body.KINEMATIC;
+      this.controller.collisionFilterMask = 0;
+      this.controller.velocity.setZero();
+      this.controller.position.set(0, -60 - this.index * 5, 0);
+      for (const p of this.partList) {
+        p.body.collisionFilterMask = 0;
+        p.body.velocity.setZero();
+      }
+      this.poseParts();
     }
   }
 
@@ -438,7 +451,7 @@ export class Character {
     this.sprinting = !!intent.sprint && mz > 0.2 && this.crouchT < 0.5;
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw);
     const w = this.weapon;
-    const gear = (w?.def.speedMult ?? 1) * (w?.ads ? 0.7 : 1);
+    const gear = (w?.def.speedMult ?? 1) * (w?.ads ? 0.7 : 1) * (this.carrying ? CONFIG.grab.carrySpeed : 1);
     const speed = ch.moveSpeed * gear * (this.sprinting ? ch.sprintMultiplier : 1) * (1 - this.crouchT * (1 - ch.crouchMultiplier));
     // frente = (-sin, -cos) · direita = (cos, -sin)
     v.x = (-sin * mz + cos * mx) * speed + this.flinch.x;

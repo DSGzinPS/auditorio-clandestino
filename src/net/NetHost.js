@@ -15,7 +15,7 @@ const LOCAL_ONLY = new Set(['update', 'editables', 'setLockHint']);
 /** Chamados todo frame: só a última chamada do frame é enviada. */
 const COALESCE = new Set(['setPhase', 'setQuizTimer', 'updateShop', 'setCrosshairs']);
 
-const BOOL_KEYS = ['fire', 'melee', 'ads', 'reload', 'rematch', 'leave', 'jump', 'sprint', 'crouch', 'ready'];
+const BOOL_KEYS = ['fire', 'melee', 'ads', 'reload', 'grab', 'rematch', 'leave', 'jump', 'sprint', 'crouch', 'ready'];
 
 /** Intenção do jogador remoto. Toques rápidos entre dois frames não se perdem. */
 export class RemoteScheme {
@@ -40,7 +40,7 @@ export class RemoteScheme {
     const it = { ...blankIntent(), moveX: l.moveX || 0, moveZ: l.moveZ || 0 };
     for (const k of BOOL_KEYS) it[k] = !!l[k] || p[k];
     // ações de "apertar" só valem uma vez
-    for (const k of ['reload', 'rematch', 'leave', 'jump', 'ready']) it[k] = p[k];
+    for (const k of ['reload', 'grab', 'rematch', 'leave', 'jump', 'ready']) it[k] = p[k];
     it.answer = p.answer;
     it.buy = p.buy;
     it.buyId = p.buyId;
@@ -53,11 +53,12 @@ export class RemoteScheme {
 }
 
 export class NetHost {
-  constructor(game, session, remoteIndex = 1) {
+  /** @param remotes [{ peer, index }] convidados e a vaga de cada um */
+  constructor(game, session, remotes) {
     this.game = game;
     this.session = session;
-    this.remote = remoteIndex;
-    this.scheme = new RemoteScheme();
+    this.remotes = new Map(remotes.map((r) => [r.peer, r.index]));
+    this.schemes = new Map(remotes.map((r) => [r.index, new RemoteScheme()]));
     this.calls = [];
     this.events = [];
     this.frame = 0;
@@ -65,7 +66,7 @@ export class NetHost {
     this.nextId = 1;
     this._wrapHud();
     this._hooks();
-    session.onMessage = (m) => this._onMessage(m);
+    session.onMessage = (m, peer) => this._onMessage(m, peer);
   }
 
   // ---------------------------------------------------------------- ganchos
@@ -102,7 +103,7 @@ export class NetHost {
     };
     g.effects.onEmit = (kind, d) => this.events.push(['e', kind, d]);
     for (const p of g.players) {
-      p.onRecoil = (dp, dy) => { if (p.index === this.remote) this.events.push(['r', dp, dy]); };
+      p.onRecoil = (dp, dy) => { if (this.schemes.has(p.index)) this.events.push(['r', dp, dy, p.index]); };
     }
   }
 
@@ -114,11 +115,18 @@ export class NetHost {
     g.players.forEach((p) => { p.onRecoil = null; });
   }
 
-  _onMessage(m) {
-    this.session.touch();
-    if (m.t === 'i') this.scheme.push(m.i);
-    else if (m.t === 'bye') this.session._lost('O outro jogador saiu da sala');
-    else if (m.t === 'hello') this.session.send({ t: 'welcome', you: this.remote });
+  _onMessage(m, peer) {
+    const idx = this.remotes.get(peer);
+    if (idx === undefined) return;
+    if (m.t === 'i') this.schemes.get(idx)?.push(m.i);
+  }
+
+  /** Convidado caiu no meio da partida: a vaga vira bot. */
+  dropRemote(peer) {
+    const idx = this.remotes.get(peer);
+    this.remotes.delete(peer);
+    this.schemes.delete(idx);
+    return idx;
   }
 
   // ---------------------------------------------------------------- snapshot

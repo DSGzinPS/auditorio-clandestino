@@ -119,6 +119,18 @@ export const CONFIG = {
   },
 
   // ---------------- DINHEIRO ----------------
+  // Agarrar outro jogador (E / botão AGARRAR): ele vira ragdoll e vai junto; clique arremessa.
+  grab: {
+    range: 2.1,        // alcance (m)
+    holdDistance: 1.3, // segura a essa distância na frente
+    maxHold: 3.5,      // segundos até ele escapar sozinho
+    struggle: 0.4,     // cada "debatida" (pular/socar) do agarrado tira isso do tempo
+    throwSpeed: 15,    // velocidade do arremesso (m/s)
+    throwUp: 4,        // um pouco pra cima
+    carrySpeed: 0.75,  // quem segura anda mais devagar
+    cooldown: 0.8,     // depois de soltar/arremessar
+  },
+
   economy: {
     startMoney: 400,
     quizCorrect: 400,        // por pergunta certa (errar só deixa de ganhar)

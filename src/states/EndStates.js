@@ -55,6 +55,12 @@ export class MatchEndState extends State {
     this.votes[pi] = v;
     g.hud.updateVotes(this.votes);
     if (v === 'leave') {
+      // em rede com mais gente: o convidado que sai vira bot e o resto continua decidindo
+      if (g.kickPlayer?.(pi)) {
+        this.votes[pi] = null;
+        g.hud.updateVotes(this.votes);
+        return;
+      }
       this.leaving = pi;
       this.leaveTimer = 1.8;
       g.hud.flash(null, `${g.players[pi].name} SAIU DA SALA`, 'bad');
